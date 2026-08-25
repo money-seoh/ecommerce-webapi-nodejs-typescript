@@ -5,7 +5,7 @@ applyTo: "src/services/**"
 # E-commerce Domain Rules
 
 ## Inventory & Stock
-- Never let available stock go negative; validate stock before confirming a cart item or order line.
+- Enforce non-negative stock atomically at the database layer (for example, use a conditional update that only succeeds when available stock is sufficient and verify the affected-row count, or equivalent row locking in a transaction); a prior read-and-check alone is insufficient.
 - Reserve stock at checkout start; release the reservation if payment fails or the session times out.
 
 ## Pricing & Discounts
