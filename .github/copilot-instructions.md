@@ -33,7 +33,7 @@ test/            # unit + integration tests
 See `.github/instructions/api-design.instructions.md`.
 
 ## ORM & Data Access
-ORM choice (Prisma, Sequelize, or TypeORM) is TBD for this project. See `.github/instructions/orm-data-access.instructions.md`.
+ORM: TBD - update this line once chosen (Prisma / Sequelize / TypeORM); the matching ORM-specific instructions then apply automatically. See `.github/instructions/orm-data-access.instructions.md`.
 
 ## Error Handling
 See `.github/instructions/error-handling.instructions.md`.
