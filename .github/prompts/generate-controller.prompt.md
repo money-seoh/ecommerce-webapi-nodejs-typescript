@@ -1,6 +1,6 @@
 ---
 description: "Generate a REST controller, route, and DTOs for an e-commerce resource, following project API design standards."
-agent: "agent"
+agent: "E-commerce API Agent"
 argument-hint: "Resource name and its endpoints, e.g. Product: list, get by id, create, update, delete"
 ---
 Generate a REST controller for the resource the user specifies in this conversation, following [api-design.instructions.md](../instructions/api-design.instructions.md) and [error-handling.instructions.md](../instructions/error-handling.instructions.md):

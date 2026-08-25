@@ -1,6 +1,6 @@
 ---
 description: "Generate Jest unit and/or integration tests for a controller, service, or repository."
-agent: "agent"
+agent: "E-commerce API Agent"
 argument-hint: "File or feature to test, and unit vs integration"
 ---
 Generate Jest tests for the file or feature the user specifies in this conversation, following [testing.instructions.md](../instructions/testing.instructions.md):
