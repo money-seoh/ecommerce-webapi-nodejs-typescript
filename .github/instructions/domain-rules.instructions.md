@@ -16,7 +16,7 @@ applyTo: "src/services/**"
 - Validate product availability and price on every cart mutation, not just at checkout.
 
 ## Checkout & Payments
-- Checkout is a multi-step, idempotent process: validate cart -> reserve stock -> create order (status PENDING) -> process payment -> confirm order (status PAID) or roll back.
+- Checkout is an idempotent workflow: validate the cart -> atomically reserve stock and create a PENDING order -> process payment outside the database transaction -> atomically record payment and mark the order PAID. On payment failure, release the reservation and cancel the order; if post-payment persistence fails, reconcile by idempotency key instead of assuming the external charge can be rolled back.
 - Payment processing must be idempotent (use an idempotency key) to avoid double charges on retry.
 
 ## Order Lifecycle
