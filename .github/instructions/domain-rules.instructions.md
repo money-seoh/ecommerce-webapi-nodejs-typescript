@@ -20,5 +20,5 @@ applyTo: "src/services/**"
 - Payment processing must be idempotent (use an idempotency key) to avoid double charges on retry.
 
 ## Order Lifecycle
-- Valid order status transitions: PENDING -> PAID -> FULFILLED -> COMPLETED, with CANCELLED/REFUNDED reachable from PENDING/PAID.
+- Valid order status transitions: PENDING -> PAID -> FULFILLED -> COMPLETED; PENDING may transition to CANCELLED, and PAID may transition to REFUNDED.
 - Reject any transition not in the allowed state machine; log rejected transitions.
