@@ -9,3 +9,7 @@ applyTo: "src/**/*.ts"
 - Never leak stack traces or internal messages to API responses in production; log full details server-side instead.
 - Log errors with enough context (request id, user id, operation) to trace an issue without exposing secrets or PII.
 - Validation errors return 400 with a `details` array describing each failing field.
+
+## Prisma Errors
+- Catch `PrismaClientKnownRequestError` and `PrismaClientValidationError` at the repository boundary; never let them propagate to services or controllers.
+- Map known Prisma error codes to domain errors, e.g. `P2002` (unique constraint) -> `ConflictError`, `P2025` (record not found) -> `NotFoundError`, validation failures -> `ValidationError`.

@@ -9,4 +9,4 @@ Generate a REST controller for the resource the user specifies in this conversat
 - Create the controller with thin handlers that call a service (stub the service interface if it does not exist yet).
 - Create the route file, versioned under `/api/v1/`.
 - Use the standard success/error envelopes and correct HTTP status codes.
-- Add input validation for every field.
+- Validate every field via a validation schema (e.g. zod or class-validator) enforced in middleware before the controller runs.
