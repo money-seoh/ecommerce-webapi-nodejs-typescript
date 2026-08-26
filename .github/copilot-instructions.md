@@ -4,19 +4,21 @@
 Backend-only REST API for e-commerce (Node.js + TypeScript + Express + SQL Server). Modules: Product Catalog, Inventory, Cart, Checkout, Orders, Payments, User Management. No UI/frontend components.
 
 ## Architecture
-Layered architecture with one-way dependency flow: Controller -> Service -> Repository -> ORM Model.
+Layered architecture with one-way dependency flow: Controller -> Service -> Repository -> Prisma Client -> SQL Server.
 - Controllers: parse/validate HTTP input, call a service, shape the HTTP response. No business logic, no direct DB access.
 - Services: own business/domain rules and orchestrate repositories.
-- Repositories: the only layer allowed to talk to the ORM/database.
+- Repositories: the only layer allowed to talk to Prisma Client/the database.
 
 Suggested folder structure:
 ```
+prisma/
+  schema.prisma
+  migrations/    # Prisma migration files
 src/
   controllers/
   services/
   repositories/
-  models/        # ORM entities/models
-  migrations/    # ORM migration files
+  dtos/
   routes/
   middlewares/
   utils/
@@ -33,7 +35,7 @@ test/            # unit + integration tests
 See `.github/instructions/api-design.instructions.md`.
 
 ## ORM & Data Access
-ORM: TBD - update this line once chosen (Prisma / Sequelize / TypeORM); the matching ORM-specific instructions then apply automatically. See `.github/instructions/orm-data-access.instructions.md`.
+ORM: Prisma. See `.github/instructions/orm-prisma.instructions.md`.
 
 ## Error Handling
 See `.github/instructions/error-handling.instructions.md`.
