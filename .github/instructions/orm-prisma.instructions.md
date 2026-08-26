@@ -61,7 +61,7 @@ Paginate list endpoints with `skip`/`take` (or cursor-based pagination for large
 await prisma.product.findMany({
   skip,
   take,
-  orderBy: { createdAt: "desc" },
+  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
 });
 ```
 
