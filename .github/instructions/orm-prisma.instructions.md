@@ -81,7 +81,7 @@ await prisma.$transaction(async (tx) => {
 ## Error Handling
 Catch and translate Prisma exceptions into domain errors at the repository boundary (see `error-handling.instructions.md`):
 - `PrismaClientKnownRequestError` (e.g. unique constraint `P2002`, record not found `P2025`) -> map to `ConflictError` / `NotFoundError`.
-- `PrismaClientValidationError` -> map to `ValidationError`.
+- `PrismaClientValidationError` -> map to a sanitized internal error; request/domain validation must produce `ValidationError` before the repository calls Prisma.
 Never let a raw Prisma error reach the controller or the HTTP response.
 
 ## Repository Pattern
