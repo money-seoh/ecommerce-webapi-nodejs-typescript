@@ -43,7 +43,7 @@ await prisma.product.update({ where: { id }, data });
 await prisma.product.delete({ where: { id } });
 ```
 
-Only use `prisma.$queryRaw` / `prisma.$executeRaw` when there is a verified performance requirement the Client API cannot satisfy - justify it in a code comment.
+Only use `prisma.$queryRaw` / `prisma.$executeRaw` when there is a verified performance requirement the Client API cannot satisfy, and justify it in a code comment. Use Prisma's parameterized tagged-template APIs; never use `$queryRawUnsafe` / `$executeRawUnsafe` or construct SQL strings from untrusted values.
 
 ## Query Best Practices
 Use `select`/`include` to fetch exactly what's needed; never over-fetch.
