@@ -85,7 +85,7 @@ Catch and translate Prisma exceptions into domain errors at the repository bound
 Never let a raw Prisma error reach the controller or the HTTP response.
 
 ## Repository Pattern
-Repositories wrap all Prisma access; services depend only on the repository interface.
+Repositories wrap all Prisma access; services depend only on repository interfaces. Create one shared `PrismaClient` in `src/config/` for the application runtime and inject it into repositories; never instantiate a client per repository or request.
 
 ```ts
 class ProductRepository {
