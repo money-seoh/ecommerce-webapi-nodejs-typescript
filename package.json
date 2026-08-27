@@ -1,0 +1,19 @@
+{
+  "name": "ecommerce-webapi-nodejs-typescript",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/money-seoh/ecommerce-webapi-nodejs-typescript.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/money-seoh/ecommerce-webapi-nodejs-typescript/issues"
+  },
+  "homepage": "https://github.com/money-seoh/ecommerce-webapi-nodejs-typescript#readme"
+}
