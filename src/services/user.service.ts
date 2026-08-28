@@ -5,6 +5,7 @@ import { ConflictError, InternalError } from "../utils/errors";
 import {
   CreateAdminUserDto,
   RegisterCustomerDto,
+  RoleName,
   ROLE_NAMES,
   UserResponseDto,
 } from "../dtos/user.dto";
@@ -84,6 +85,10 @@ export class UserService {
     }
 
     const roleName = user.userRoles[0].role.name;
+    const validRoleNames: readonly string[] = Object.values(ROLE_NAMES);
+    if (!validRoleNames.includes(roleName)) {
+      throw new InternalError(`Unrecognised role name: ${roleName}`);
+    }
 
     return {
       id: user.id,
@@ -91,7 +96,7 @@ export class UserService {
       lastName: user.lastName,
       email: user.email,
       mobileNumber: user.mobileNumber,
-      role: roleName as UserResponseDto["role"],
+      role: roleName as RoleName,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
