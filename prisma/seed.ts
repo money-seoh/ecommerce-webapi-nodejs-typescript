@@ -1,9 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-
-export const ROLE_NAMES = {
-  ADMIN: "Admin",
-  CUSTOMER: "Customer",
-} as const;
+import { ROLE_NAMES } from "../src/dtos/user.dto";
 
 const prisma = new PrismaClient();
 

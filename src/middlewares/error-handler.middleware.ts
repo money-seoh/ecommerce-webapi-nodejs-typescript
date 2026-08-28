@@ -28,11 +28,12 @@ export function errorHandler(
       path: req.path,
     });
 
+    const isServerError = err.statusCode >= 500;
     const body: ErrorEnvelope = {
       error: {
         code: err.code,
-        message: err.message,
-        details: err.details,
+        message: isServerError ? "An unexpected error occurred" : err.message,
+        details: isServerError ? undefined : err.details,
       },
     };
     res.status(err.statusCode).json(body);
