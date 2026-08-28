@@ -11,7 +11,7 @@ function requireEnv(name: string, fallback?: string): string {
 }
 
 export const env = {
-  databaseUrl: requireEnv("DATABASE_URL", ""),
+  databaseUrl: requireEnv("DATABASE_URL"),
   port: parseInt(requireEnv("PORT", "3000"), 10),
   bcryptSaltRounds: parseInt(requireEnv("BCRYPT_SALT_ROUNDS", "10"), 10),
   nodeEnv: process.env.NODE_ENV ?? "development",
