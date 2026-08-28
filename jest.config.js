@@ -7,4 +7,5 @@ module.exports = {
   testMatch: ["**/*.test.ts", "**/*.spec.ts"],
   collectCoverageFrom: ["src/**/*.ts"],
   clearMocks: true,
+  setupFiles: ["<rootDir>/test/jest.setup.ts"],
 };
