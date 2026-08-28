@@ -5,7 +5,7 @@ import { createAdminUserSchema, registerCustomerSchema } from "../dtos/user.dto"
 import { ValidationError } from "../utils/errors";
 
 function toValidationError(error: ZodError): ValidationError {
-  const details = { issues: error.issues.map((issue) => ({ path: issue.path, message: issue.message })) };
+  const details = error.issues.map((issue) => ({ path: issue.path, message: issue.message }));
   return new ValidationError("Validation failed", details);
 }
 

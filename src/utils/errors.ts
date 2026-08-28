@@ -1,4 +1,4 @@
-export type ErrorDetails = Record<string, unknown> | undefined;
+export type ErrorDetails = { path: (string | number)[]; message: string }[] | undefined;
 
 /**
  * Base class for all typed domain errors. Never throw raw strings or plain

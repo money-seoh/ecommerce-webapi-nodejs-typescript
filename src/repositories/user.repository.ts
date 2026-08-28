@@ -34,17 +34,37 @@ export class UserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findByEmail(email: string): Promise<UserWithRole | null> {
-    return this.prisma.user.findUnique({
-      where: { email },
-      include: userWithRoleInclude,
-    });
+    try {
+      return await this.prisma.user.findUnique({
+        where: { email },
+        include: userWithRoleInclude,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new NotFoundError("User not found");
+      }
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new InternalError("Invalid query for findByEmail");
+      }
+      throw error;
+    }
   }
 
   async findById(id: number): Promise<UserWithRole | null> {
-    return this.prisma.user.findUnique({
-      where: { id },
-      include: userWithRoleInclude,
-    });
+    try {
+      return await this.prisma.user.findUnique({
+        where: { id },
+        include: userWithRoleInclude,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new NotFoundError("User not found");
+      }
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new InternalError("Invalid query for findById");
+      }
+      throw error;
+    }
   }
 
   async create(data: CreateUserRecord): Promise<UserWithRole> {

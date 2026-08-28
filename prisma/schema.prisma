@@ -22,8 +22,6 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   userRoles    UserRole[]
-
-  @@index([email])
 }
 
 model Role {
@@ -42,7 +40,7 @@ model UserRole {
   user      User     @relation(fields: [userId], references: [id])
   role      Role     @relation(fields: [roleId], references: [id])
 
-  @@unique([userId, roleId])
+  @@unique([userId])
   @@index([userId])
   @@index([roleId])
 }
