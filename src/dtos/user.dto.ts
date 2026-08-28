@@ -1,0 +1,57 @@
+import { z } from "zod";
+
+export const ROLE_NAMES = {
+  ADMIN: "Admin",
+  CUSTOMER: "Customer",
+} as const;
+
+export type RoleName = (typeof ROLE_NAMES)[keyof typeof ROLE_NAMES];
+
+// Password policy: minimum 8 characters, at least one letter and one number.
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters long")
+  .regex(/[A-Za-z]/, "Password must contain at least one letter")
+  .regex(/[0-9]/, "Password must contain at least one number");
+
+const baseUserFields = {
+  firstName: z.string().trim().min(1, "First name is required"),
+  lastName: z.string().trim().min(1, "Last name is required"),
+  email: z.string().trim().email("Email must be a valid email address"),
+  mobileNumber: z.string().trim().min(1, "Mobile number is required"),
+  password: passwordSchema,
+};
+
+/**
+ * DTO for admin-initiated user creation (POST /api/v1/admin/users).
+ * Admin may create Admin or Customer accounts and optionally set isActive;
+ * isActive defaults to false (Inactive) when omitted.
+ */
+export const createAdminUserSchema = z.object({
+  ...baseUserFields,
+  role: z.enum([ROLE_NAMES.ADMIN, ROLE_NAMES.CUSTOMER]),
+  isActive: z.boolean().optional(),
+});
+
+export type CreateAdminUserDto = z.infer<typeof createAdminUserSchema>;
+
+/**
+ * DTO for customer self-registration (POST /api/v1/customers/register).
+ * Role and status are not accepted from the client; the service always
+ * assigns role=Customer and isActive=true.
+ */
+export const registerCustomerSchema = z.object(baseUserFields);
+
+export type RegisterCustomerDto = z.infer<typeof registerCustomerSchema>;
+
+export interface UserResponseDto {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobileNumber: string;
+  role: RoleName;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
