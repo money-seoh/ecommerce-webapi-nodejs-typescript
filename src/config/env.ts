@@ -10,9 +10,21 @@ function requireEnv(name: string, fallback?: string): string {
   return value;
 }
 
+function requirePositiveInt(name: string, fallback?: string): number {
+  const raw = requireEnv(name, fallback);
+  const trimmed = raw.trim();
+  const value = parseInt(trimmed, 10);
+  if (!Number.isInteger(value) || value <= 0 || String(value) !== trimmed) {
+    throw new Error(
+      `Environment variable ${name} must be a positive integer, got: "${raw}"`,
+    );
+  }
+  return value;
+}
+
 export const env = {
   databaseUrl: requireEnv("DATABASE_URL"),
-  port: parseInt(requireEnv("PORT", "3000"), 10),
-  bcryptSaltRounds: parseInt(requireEnv("BCRYPT_SALT_ROUNDS", "10"), 10),
+  port: requirePositiveInt("PORT", "3000"),
+  bcryptSaltRounds: requirePositiveInt("BCRYPT_SALT_ROUNDS", "10"),
   nodeEnv: process.env.NODE_ENV ?? "development",
 };

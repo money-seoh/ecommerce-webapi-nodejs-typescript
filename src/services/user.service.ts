@@ -77,10 +77,13 @@ export class UserService {
   }
 
   private toResponseDto(user: UserWithRole): UserResponseDto {
-    const roleName = user.userRoles[0]?.role.name;
-    if (!roleName) {
-      throw new InternalError("Created user is missing a role assignment");
+    if (user.userRoles.length !== 1) {
+      throw new InternalError(
+        `User ${user.id} has ${user.userRoles.length} role(s); exactly one is required`,
+      );
     }
+
+    const roleName = user.userRoles[0].role.name;
 
     return {
       id: user.id,
