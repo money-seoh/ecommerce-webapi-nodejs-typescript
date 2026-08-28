@@ -41,7 +41,7 @@ export class UserRepository {
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        throw new NotFoundError("User not found");
+        throw new InternalError("Database error in findByEmail");
       }
       if (error instanceof Prisma.PrismaClientValidationError) {
         throw new InternalError("Invalid query for findByEmail");
@@ -58,7 +58,7 @@ export class UserRepository {
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        throw new NotFoundError("User not found");
+        throw new InternalError("Database error in findById");
       }
       if (error instanceof Prisma.PrismaClientValidationError) {
         throw new InternalError("Invalid query for findById");

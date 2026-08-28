@@ -41,6 +41,5 @@ model UserRole {
   role      Role     @relation(fields: [roleId], references: [id])
 
   @@unique([userId])
-  @@index([userId])
   @@index([roleId])
 }
