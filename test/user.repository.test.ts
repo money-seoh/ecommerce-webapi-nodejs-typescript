@@ -1,0 +1,175 @@
+import { Prisma } from "@prisma/client";
+import { UserRepository } from "../src/repositories/user.repository";
+import { ConflictError, InternalError, NotFoundError } from "../src/utils/errors";
+import { buildUserWithRole } from "./fixtures/user.fixtures";
+
+interface MockPrismaClient {
+  user: {
+    findUnique: jest.Mock;
+    create: jest.Mock;
+  };
+}
+
+function makePrismaClient(): MockPrismaClient {
+  return {
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+  };
+}
+
+function makeKnownRequestError(code: string): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError("db error", {
+    code,
+    clientVersion: "5.0.0",
+  });
+}
+
+function makeValidationError(): Prisma.PrismaClientValidationError {
+  return new Prisma.PrismaClientValidationError("validation error", {
+    clientVersion: "5.0.0",
+  });
+}
+
+describe("UserRepository", () => {
+  describe("findByEmail", () => {
+    it("should return a user when found", async () => {
+      const user = buildUserWithRole();
+      const prisma = makePrismaClient();
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(user);
+      const repo = new UserRepository(prisma as never);
+      const result = await repo.findByEmail("jane.doe@example.com");
+      expect(result).toEqual(user);
+    });
+
+    it("should return null when user is not found", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      const repo = new UserRepository(prisma as never);
+      const result = await repo.findByEmail("nobody@example.com");
+      expect(result).toBeNull();
+    });
+
+    it("should throw InternalError on PrismaClientKnownRequestError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.findUnique as jest.Mock).mockRejectedValue(makeKnownRequestError("P2001"));
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.findByEmail("test@example.com")).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should throw InternalError on PrismaClientValidationError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.findUnique as jest.Mock).mockRejectedValue(makeValidationError());
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.findByEmail("test@example.com")).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should rethrow unknown errors", async () => {
+      const prisma = makePrismaClient();
+      const unknownError = new Error("network timeout");
+      (prisma.user.findUnique as jest.Mock).mockRejectedValue(unknownError);
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.findByEmail("test@example.com")).rejects.toBe(unknownError);
+    });
+  });
+
+  describe("findById", () => {
+    it("should return a user when found", async () => {
+      const user = buildUserWithRole({ id: 5 });
+      const prisma = makePrismaClient();
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(user);
+      const repo = new UserRepository(prisma as never);
+      const result = await repo.findById(5);
+      expect(result).toEqual(user);
+    });
+
+    it("should return null when user is not found", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      const repo = new UserRepository(prisma as never);
+      const result = await repo.findById(999);
+      expect(result).toBeNull();
+    });
+
+    it("should throw InternalError on PrismaClientKnownRequestError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.findUnique as jest.Mock).mockRejectedValue(makeKnownRequestError("P2001"));
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.findById(1)).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should throw InternalError on PrismaClientValidationError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.findUnique as jest.Mock).mockRejectedValue(makeValidationError());
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.findById(1)).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should rethrow unknown errors", async () => {
+      const prisma = makePrismaClient();
+      const unknownError = new Error("network timeout");
+      (prisma.user.findUnique as jest.Mock).mockRejectedValue(unknownError);
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.findById(1)).rejects.toBe(unknownError);
+    });
+  });
+
+  describe("create", () => {
+    const createData = {
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane.doe@example.com",
+      mobileNumber: "+15551234567",
+      passwordHash: "hashed",
+      isActive: false,
+      roleId: 1,
+    };
+
+    it("should return the created user", async () => {
+      const user = buildUserWithRole();
+      const prisma = makePrismaClient();
+      (prisma.user.create as jest.Mock).mockResolvedValue(user);
+      const repo = new UserRepository(prisma as never);
+      const result = await repo.create(createData);
+      expect(result).toEqual(user);
+    });
+
+    it("should throw ConflictError on P2002 (unique constraint)", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.create as jest.Mock).mockRejectedValue(makeKnownRequestError("P2002"));
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.create(createData)).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("should throw NotFoundError on P2025 (record not found)", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.create as jest.Mock).mockRejectedValue(makeKnownRequestError("P2025"));
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.create(createData)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("should rethrow unhandled PrismaClientKnownRequestError codes", async () => {
+      const prisma = makePrismaClient();
+      const knownError = makeKnownRequestError("P2003");
+      (prisma.user.create as jest.Mock).mockRejectedValue(knownError);
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.create(createData)).rejects.toBe(knownError);
+    });
+
+    it("should throw InternalError on PrismaClientValidationError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.create as jest.Mock).mockRejectedValue(makeValidationError());
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.create(createData)).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should rethrow unknown errors", async () => {
+      const prisma = makePrismaClient();
+      const unknownError = new Error("unexpected");
+      (prisma.user.create as jest.Mock).mockRejectedValue(unknownError);
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.create(createData)).rejects.toBe(unknownError);
+    });
+  });
+});

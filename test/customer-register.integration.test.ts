@@ -87,4 +87,39 @@ describe("POST /api/v1/customers/register", () => {
     expect(response.body.error.code).toBe("VALIDATION_ERROR");
     expect(registerCustomerSpy).not.toHaveBeenCalled();
   });
+
+  it("should return 409 when the service reports a duplicate email", async () => {
+    const { ConflictError } = jest.requireActual("../src/utils/errors");
+    registerCustomerSpy.mockRejectedValue(new ConflictError("A user with this email already exists"));
+
+    const app = createApp();
+
+    const response = await request(app).post("/api/v1/customers/register").send({
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      password: "Password1",
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe("CONFLICT");
+  });
+
+  it("should return 500 when the service throws an unexpected error", async () => {
+    registerCustomerSpy.mockRejectedValue(new Error("unexpected"));
+
+    const app = createApp();
+
+    const response = await request(app).post("/api/v1/customers/register").send({
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      password: "Password1",
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.body.error.code).toBe("INTERNAL_ERROR");
+  });
 });
