@@ -147,5 +147,58 @@ describe("UserService", () => {
       ).rejects.toBeInstanceOf(ConflictError);
       expect(userRepository.create).not.toHaveBeenCalled();
     });
+
+    it("should throw InternalError when Customer role is not configured", async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+      roleRepository.findByName.mockResolvedValue(null);
+
+      await expect(
+        service.registerCustomer({
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane.doe@example.com",
+          mobileNumber: "+15551234567",
+          password: "Password1",
+        }),
+      ).rejects.toBeInstanceOf(InternalError);
+    });
+  });
+
+  describe("toResponseDto edge cases (via createAdminUser)", () => {
+    it("should throw InternalError when the created user has no roles", async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+      roleRepository.findByName.mockResolvedValue({ id: 1, name: "Admin", createdAt: new Date(), updatedAt: new Date() });
+      userRepository.create.mockResolvedValue(buildUserWithRole({ userRoles: [] }));
+
+      await expect(
+        service.createAdminUser({
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane.doe@example.com",
+          mobileNumber: "+15551234567",
+          password: "Password1",
+          role: "Admin",
+        }),
+      ).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should throw InternalError when the created user has an unrecognised role name", async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+      roleRepository.findByName.mockResolvedValue({ id: 99, name: "SuperAdmin", createdAt: new Date(), updatedAt: new Date() });
+      userRepository.create.mockResolvedValue(
+        buildUserWithRole({ userRoles: [{ role: { id: 99, name: "SuperAdmin" } }] }),
+      );
+
+      await expect(
+        service.createAdminUser({
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane.doe@example.com",
+          mobileNumber: "+15551234567",
+          password: "Password1",
+          role: "Admin",
+        }),
+      ).rejects.toBeInstanceOf(InternalError);
+    });
   });
 });

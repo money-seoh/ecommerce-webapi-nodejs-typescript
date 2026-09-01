@@ -73,4 +73,68 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(409);
     expect(response.body.error.code).toBe("CONFLICT");
   });
+
+  it("should return 400 with details when individual fields fail validation", async () => {
+    const app = createApp();
+
+    const response = await request(app).post("/api/v1/admin/users").send({
+      firstName: "",
+      lastName: "Doe",
+      email: "not-valid",
+      mobileNumber: "+15551234567",
+      password: "short",
+      role: "Admin",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(Array.isArray(response.body.error.details)).toBe(true);
+  });
+
+  it("should return 500 when the service throws an unexpected error", async () => {
+    createAdminUserSpy.mockRejectedValue(new Error("unexpected"));
+
+    const app = createApp();
+
+    const response = await request(app).post("/api/v1/admin/users").send({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane.doe@example.com",
+      mobileNumber: "+15551234567",
+      password: "Password1",
+      role: "Admin",
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.body.error.code).toBe("INTERNAL_ERROR");
+  });
+});
+
+describe("POST /api/v1/admin/users — non-safe environment", () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  beforeAll(() => {
+    jest.resetModules();
+    process.env.NODE_ENV = "production";
+  });
+
+  afterAll(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+    jest.resetModules();
+  });
+
+  it("should return 403 when NODE_ENV is not development or test", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createApp: createFreshApp } = require("../src/app");
+    const app = createFreshApp();
+    const response = await request(app).post("/api/v1/admin/users").send({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane.doe@example.com",
+      mobileNumber: "+15551234567",
+      password: "Password1",
+      role: "Admin",
+    });
+    expect(response.status).toBe(403);
+  });
 });
