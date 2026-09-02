@@ -4,6 +4,7 @@ import {
   ConflictError,
   UnauthorizedError,
   ForbiddenError,
+  TooManyRequestsError,
   InternalError,
 } from "../src/utils/errors";
 
@@ -91,6 +92,20 @@ describe("Domain Error Classes", () => {
       expect(err.message).toBe("db exploded");
     });
 
+    describe("TooManyRequestsError", () => {
+      it("should have statusCode 429 and code TOO_MANY_REQUESTS", () => {
+        const err = new TooManyRequestsError("limit reached");
+        expect(err.statusCode).toBe(429);
+        expect(err.code).toBe("TOO_MANY_REQUESTS");
+        expect(err.message).toBe("limit reached");
+      });
+
+      it("should use default message when none provided", () => {
+        const err = new TooManyRequestsError();
+        expect(err.message).toBe("Too many requests");
+      });
+    });
+
     it("should use default message when none provided", () => {
       const err = new InternalError();
       expect(err.message).toBe("An unexpected error occurred");
@@ -104,6 +119,7 @@ describe("Domain Error Classes", () => {
       expect(new ConflictError()).toBeInstanceOf(Error);
       expect(new UnauthorizedError()).toBeInstanceOf(Error);
       expect(new ForbiddenError()).toBeInstanceOf(Error);
+      expect(new TooManyRequestsError()).toBeInstanceOf(Error);
       expect(new InternalError()).toBeInstanceOf(Error);
     });
   });

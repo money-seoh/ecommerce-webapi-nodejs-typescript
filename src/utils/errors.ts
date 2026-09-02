@@ -63,6 +63,15 @@ export class ForbiddenError extends DomainError {
   }
 }
 
+export class TooManyRequestsError extends DomainError {
+  readonly statusCode = 429;
+  readonly code = "TOO_MANY_REQUESTS";
+
+  constructor(message = "Too many requests", details?: ErrorDetails) {
+    super(message, details);
+  }
+}
+
 export class InternalError extends DomainError {
   readonly statusCode = 500;
   readonly code = "INTERNAL_ERROR";
