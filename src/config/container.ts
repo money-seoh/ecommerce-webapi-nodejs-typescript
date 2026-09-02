@@ -8,6 +8,6 @@ import { UserController } from "../controllers/user.controller";
 // modules don't each instantiate their own copies of shared dependencies.
 const userRepository = new UserRepository(prisma);
 const roleRepository = new RoleRepository(prisma);
-const userService = new UserService(userRepository, roleRepository);
+export const userService = new UserService(userRepository, roleRepository);
 
 export const userController = new UserController(userService);

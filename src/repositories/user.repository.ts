@@ -69,21 +69,23 @@ export class UserRepository {
 
   async create(data: CreateUserRecord): Promise<UserWithRole> {
     try {
-      return await this.prisma.user.create({
-        data: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-          mobileNumber: data.mobileNumber,
-          passwordHash: data.passwordHash,
-          isActive: data.isActive,
-          userRoles: {
-            create: {
-              roleId: data.roleId,
+      return await this.prisma.$transaction(async (tx) => {
+        return tx.user.create({
+          data: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            mobileNumber: data.mobileNumber,
+            passwordHash: data.passwordHash,
+            isActive: data.isActive,
+            userRoles: {
+              create: {
+                roleId: data.roleId,
+              },
             },
           },
-        },
-        include: userWithRoleInclude,
+          include: userWithRoleInclude,
+        });
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -96,6 +98,32 @@ export class UserRepository {
       }
       if (error instanceof Prisma.PrismaClientValidationError) {
         throw new InternalError("Invalid user creation request");
+      }
+      throw error;
+    }
+  }
+
+  async hasAnyAdminUser(): Promise<boolean> {
+    try {
+      const adminCount = await this.prisma.user.count({
+        where: {
+          userRoles: {
+            some: {
+              role: {
+                name: "Admin",
+              },
+            },
+          },
+          deactivatedAt: null,
+        },
+      });
+      return adminCount > 0;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new InternalError("Database error in hasAnyAdminUser");
+      }
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new InternalError("Invalid query for hasAnyAdminUser");
       }
       throw error;
     }

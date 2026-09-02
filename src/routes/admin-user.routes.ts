@@ -1,22 +1,25 @@
 import { Router } from "express";
-import { userController } from "../config/container";
-import { env } from "../config/env";
-import { ForbiddenError } from "../utils/errors";
+import rateLimit from "express-rate-limit";
+import { userController, userService } from "../config/container";
+import { requireAdminAuthAfterBootstrap } from "../middlewares/bootstrap-admin-auth.middleware";
+import { TooManyRequestsError } from "../utils/errors";
 
-// NOTE: This endpoint is not yet protected by authentication/authorization
-// middleware, since the Auth module (JWT validation + role-based
-// authorization, see EPIC #1) has not been implemented yet. Admin-only
-// access must be enforced once AUTH-US-004/AUTH-US-005 land.
 const router: Router = Router();
+const adminUserCreationRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many admin user creation attempts"));
+  },
+});
 
-const SAFE_ENVIRONMENTS = new Set(["development", "test"]);
-
-if (!SAFE_ENVIRONMENTS.has(env.nodeEnv)) {
-  router.post("/", (_req, _res, next) => {
-    next(new ForbiddenError("Admin user creation is not available in this environment"));
-  });
-} else {
-  router.post("/", userController.createUserByAdmin);
-}
+router.post(
+  "/",
+  adminUserCreationRateLimit,
+  requireAdminAuthAfterBootstrap(userService),
+  userController.createUserByAdmin,
+);
 
 export default router;

@@ -46,7 +46,11 @@ describe("UserService", () => {
       });
 
       expect(userRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ isActive: false, roleId: 1 }),
+        expect.objectContaining({
+          email: "jane.doe@example.com",
+          isActive: false,
+          roleId: 1,
+        }),
       );
     });
 
@@ -129,7 +133,35 @@ describe("UserService", () => {
 
       expect(roleRepository.findByName).toHaveBeenCalledWith("Customer");
       expect(userRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ isActive: true, roleId: 2 }),
+        expect.objectContaining({
+          email: "jane.doe@example.com",
+          isActive: true,
+          roleId: 2,
+        }),
+      );
+    });
+
+    it("should normalize email to lowercase before uniqueness check and create", async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+      roleRepository.findByName.mockResolvedValue({
+        id: 2,
+        name: "Customer",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      userRepository.create.mockResolvedValue(buildUserWithRole({ isActive: true }));
+
+      await service.registerCustomer({
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "Jane.Doe@Example.COM",
+        mobileNumber: "+15551234567",
+        password: "Password1",
+      });
+
+      expect(userRepository.findByEmail).toHaveBeenCalledWith("jane.doe@example.com");
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ email: "jane.doe@example.com" }),
       );
     });
 
@@ -199,6 +231,14 @@ describe("UserService", () => {
           role: "Admin",
         }),
       ).rejects.toBeInstanceOf(InternalError);
+    });
+
+    describe("hasAnyAdminUsers", () => {
+      it("should return true when repository reports an existing Admin user", async () => {
+        userRepository.hasAnyAdminUser.mockResolvedValue(true);
+        await expect(service.hasAnyAdminUsers()).resolves.toBe(true);
+        expect(userRepository.hasAnyAdminUser).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });

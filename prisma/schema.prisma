@@ -19,6 +19,7 @@ model User {
   mobileNumber String
   passwordHash String
   isActive     Boolean    @default(false)
+  deactivatedAt DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   userRoles    UserRole[]
