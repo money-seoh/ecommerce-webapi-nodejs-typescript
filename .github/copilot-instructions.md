@@ -34,6 +34,9 @@ test/            # unit + integration tests
 ## API Design Standards
 See `.github/instructions/api-design.instructions.md`.
 
+## Endpoint Security Requirement Standards
+See `.github/instructions/endpoint-security-requirements.instructions.md` when drafting issue requirements or endpoint-level acceptance criteria.
+
 ## ORM & Data Access
 ORM: Prisma. See `.github/instructions/orm-prisma.instructions.md`.
 
