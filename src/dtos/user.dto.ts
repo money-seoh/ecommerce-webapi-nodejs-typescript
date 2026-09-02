@@ -11,14 +11,20 @@ export type RoleName = (typeof ROLE_NAMES)[keyof typeof ROLE_NAMES];
 const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters long")
+  .max(24, "Password must be at most 24 characters long")
   .regex(/[A-Za-z]/, "Password must contain at least one letter")
   .regex(/[0-9]/, "Password must contain at least one number");
+
+const e164MobileNumberSchema = z
+  .string()
+  .trim()
+  .regex(/^\+[1-9]\d{1,14}$/, "Mobile number must be a valid E.164 phone number");
 
 const baseUserFields = {
   firstName: z.string().trim().min(1, "First name is required"),
   lastName: z.string().trim().min(1, "Last name is required"),
   email: z.string().trim().email("Email must be a valid email address"),
-  mobileNumber: z.string().trim().min(1, "Mobile number is required"),
+  mobileNumber: e164MobileNumberSchema,
   password: passwordSchema,
 };
 
@@ -52,6 +58,7 @@ export interface UserResponseDto {
   mobileNumber: string;
   role: RoleName;
   isActive: boolean;
+  deactivatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

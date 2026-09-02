@@ -22,6 +22,7 @@ describe("POST /api/v1/customers/register", () => {
       mobileNumber: "+15559876543",
       role: "Customer",
       isActive: true,
+      deactivatedAt: null,
       createdAt: new Date("2024-01-01T00:00:00.000Z"),
       updatedAt: new Date("2024-01-01T00:00:00.000Z"),
     });
@@ -49,6 +50,7 @@ describe("POST /api/v1/customers/register", () => {
       mobileNumber: "+15559876543",
       role: "Customer",
       isActive: true,
+      deactivatedAt: null,
       createdAt: new Date("2024-01-01T00:00:00.000Z"),
       updatedAt: new Date("2024-01-01T00:00:00.000Z"),
     });
@@ -81,6 +83,22 @@ describe("POST /api/v1/customers/register", () => {
       email: "john.smith@example.com",
       mobileNumber: "+15559876543",
       password: "short",
+    });
+
+    it("should return 400 when mobile number is not valid E.164", async () => {
+      const app = createApp();
+
+      const response = await request(app).post("/api/v1/customers/register").send({
+        firstName: "John",
+        lastName: "Smith",
+        email: "john.smith@example.com",
+        mobileNumber: "010-1111-2222",
+        password: "Password1",
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe("VALIDATION_ERROR");
+      expect(registerCustomerSpy).not.toHaveBeenCalled();
     });
 
     expect(response.status).toBe(400);

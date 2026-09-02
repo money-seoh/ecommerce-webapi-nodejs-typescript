@@ -4,17 +4,21 @@ import { ConflictError, InternalError, NotFoundError } from "../src/utils/errors
 import { buildUserWithRole } from "./fixtures/user.fixtures";
 
 interface MockPrismaClient {
+  $transaction: jest.Mock;
   user: {
     findUnique: jest.Mock;
     create: jest.Mock;
+    count: jest.Mock;
   };
 }
 
 function makePrismaClient(): MockPrismaClient {
   return {
+    $transaction: jest.fn(),
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      count: jest.fn(),
     },
   };
 }
@@ -129,6 +133,9 @@ describe("UserRepository", () => {
     it("should return the created user", async () => {
       const user = buildUserWithRole();
       const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
       (prisma.user.create as jest.Mock).mockResolvedValue(user);
       const repo = new UserRepository(prisma as never);
       const result = await repo.create(createData);
@@ -137,6 +144,9 @@ describe("UserRepository", () => {
 
     it("should throw ConflictError on P2002 (unique constraint)", async () => {
       const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
       (prisma.user.create as jest.Mock).mockRejectedValue(makeKnownRequestError("P2002"));
       const repo = new UserRepository(prisma as never);
       await expect(repo.create(createData)).rejects.toBeInstanceOf(ConflictError);
@@ -144,6 +154,9 @@ describe("UserRepository", () => {
 
     it("should throw NotFoundError on P2025 (record not found)", async () => {
       const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
       (prisma.user.create as jest.Mock).mockRejectedValue(makeKnownRequestError("P2025"));
       const repo = new UserRepository(prisma as never);
       await expect(repo.create(createData)).rejects.toBeInstanceOf(NotFoundError);
@@ -152,6 +165,9 @@ describe("UserRepository", () => {
     it("should rethrow unhandled PrismaClientKnownRequestError codes", async () => {
       const prisma = makePrismaClient();
       const knownError = makeKnownRequestError("P2003");
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
       (prisma.user.create as jest.Mock).mockRejectedValue(knownError);
       const repo = new UserRepository(prisma as never);
       await expect(repo.create(createData)).rejects.toBe(knownError);
@@ -159,6 +175,9 @@ describe("UserRepository", () => {
 
     it("should throw InternalError on PrismaClientValidationError", async () => {
       const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
       (prisma.user.create as jest.Mock).mockRejectedValue(makeValidationError());
       const repo = new UserRepository(prisma as never);
       await expect(repo.create(createData)).rejects.toBeInstanceOf(InternalError);
@@ -167,9 +186,41 @@ describe("UserRepository", () => {
     it("should rethrow unknown errors", async () => {
       const prisma = makePrismaClient();
       const unknownError = new Error("unexpected");
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
       (prisma.user.create as jest.Mock).mockRejectedValue(unknownError);
       const repo = new UserRepository(prisma as never);
       await expect(repo.create(createData)).rejects.toBe(unknownError);
+    });
+  });
+
+  describe("hasAnyAdminUser", () => {
+    it("should return true when at least one non-deactivated Admin exists", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.count as jest.Mock).mockResolvedValue(1);
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.hasAnyAdminUser()).resolves.toBe(true);
+      expect(prisma.user.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ deactivatedAt: null }),
+        }),
+      );
+    });
+
+    it("should return false when no Admin exists", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.count as jest.Mock).mockResolvedValue(0);
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.hasAnyAdminUser()).resolves.toBe(false);
+    });
+
+    it("should throw InternalError on PrismaClientKnownRequestError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.count as jest.Mock).mockRejectedValue(makeKnownRequestError("P2001"));
+      const repo = new UserRepository(prisma as never);
+      await expect(repo.hasAnyAdminUser()).rejects.toBeInstanceOf(InternalError);
     });
   });
 });

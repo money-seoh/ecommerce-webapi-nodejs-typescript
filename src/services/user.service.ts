@@ -21,7 +21,8 @@ export class UserService {
    * accounts; isActive defaults to false (Inactive) when not provided.
    */
   async createAdminUser(dto: CreateAdminUserDto): Promise<UserResponseDto> {
-    await this.ensureEmailIsAvailable(dto.email);
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    await this.ensureEmailIsAvailable(normalizedEmail);
 
     const role = await this.roleRepository.findByName(dto.role);
     if (!role) {
@@ -33,7 +34,7 @@ export class UserService {
     const user = await this.userRepository.create({
       firstName: dto.firstName,
       lastName: dto.lastName,
-      email: dto.email,
+      email: normalizedEmail,
       mobileNumber: dto.mobileNumber,
       passwordHash,
       isActive: dto.isActive ?? false,
@@ -48,7 +49,8 @@ export class UserService {
    * always created Active, regardless of any client-submitted values.
    */
   async registerCustomer(dto: RegisterCustomerDto): Promise<UserResponseDto> {
-    await this.ensureEmailIsAvailable(dto.email);
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    await this.ensureEmailIsAvailable(normalizedEmail);
 
     const role = await this.roleRepository.findByName(ROLE_NAMES.CUSTOMER);
     if (!role) {
@@ -60,7 +62,7 @@ export class UserService {
     const user = await this.userRepository.create({
       firstName: dto.firstName,
       lastName: dto.lastName,
-      email: dto.email,
+      email: normalizedEmail,
       mobileNumber: dto.mobileNumber,
       passwordHash,
       isActive: true,
@@ -70,11 +72,19 @@ export class UserService {
     return this.toResponseDto(user);
   }
 
+  async hasAnyAdminUsers(): Promise<boolean> {
+    return this.userRepository.hasAnyAdminUser();
+  }
+
   private async ensureEmailIsAvailable(email: string): Promise<void> {
     const existing = await this.userRepository.findByEmail(email);
     if (existing) {
       throw new ConflictError("A user with this email already exists");
     }
+  }
+
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
   }
 
   private toResponseDto(user: UserWithRole): UserResponseDto {
@@ -98,6 +108,7 @@ export class UserService {
       mobileNumber: user.mobileNumber,
       role: roleName as RoleName,
       isActive: user.isActive,
+      deactivatedAt: user.deactivatedAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
