@@ -85,20 +85,20 @@ describe("POST /api/v1/customers/register", () => {
       password: "short",
     });
 
-    it("should return 400 when mobile number is not valid E.164", async () => {
-      const app = createApp();
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(registerCustomerSpy).not.toHaveBeenCalled();
+  });
 
-      const response = await request(app).post("/api/v1/customers/register").send({
-        firstName: "John",
-        lastName: "Smith",
-        email: "john.smith@example.com",
-        mobileNumber: "010-1111-2222",
-        password: "Password1",
-      });
+  it("should return 400 when mobile number is not valid E.164", async () => {
+    const app = createApp();
 
-      expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe("VALIDATION_ERROR");
-      expect(registerCustomerSpy).not.toHaveBeenCalled();
+    const response = await request(app).post("/api/v1/customers/register").send({
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "010-1111-2222",
+      password: "Password1",
     });
 
     expect(response.status).toBe(400);

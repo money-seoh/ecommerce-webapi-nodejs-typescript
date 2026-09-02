@@ -3,13 +3,8 @@ import { ROLE_NAMES } from "../dtos/user.dto";
 import { UserService } from "../services/user.service";
 import { ForbiddenError, UnauthorizedError } from "../utils/errors";
 
-function hasValidBearerToken(authorizationHeader: string | undefined): boolean {
-  if (!authorizationHeader) {
-    return false;
-  }
-
-  const [scheme, token] = authorizationHeader.split(" ");
-  return scheme === "Bearer" && Boolean(token?.trim());
+function hasAuthenticatedContext(authorizationHeader: string | undefined): boolean {
+  return Boolean(authorizationHeader?.trim());
 }
 
 export function requireAdminAuthAfterBootstrap(userService: UserService) {
@@ -21,7 +16,7 @@ export function requireAdminAuthAfterBootstrap(userService: UserService) {
         return;
       }
 
-      if (!hasValidBearerToken(req.header("authorization"))) {
+      if (!hasAuthenticatedContext(req.header("authorization"))) {
         throw new UnauthorizedError("Authentication required");
       }
 
