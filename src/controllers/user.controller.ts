@@ -1,7 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { UserService } from "../services/user.service";
-import { createAdminUserSchema, registerCustomerSchema } from "../dtos/user.dto";
+import {
+  createAdminUserSchema,
+  customerLoginSchema,
+  registerCustomerSchema,
+} from "../dtos/user.dto";
 import { ValidationError } from "../utils/errors";
 
 function toValidationError(error: ZodError): ValidationError {
@@ -35,6 +39,20 @@ export class UserController {
 
       const user = await this.userService.registerCustomer(parseResult.data);
       res.status(201).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  loginCustomer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parseResult = customerLoginSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        throw toValidationError(parseResult.error);
+      }
+
+      const authResponse = await this.userService.loginCustomer(parseResult.data);
+      res.status(200).json({ data: authResponse });
     } catch (error) {
       next(error);
     }

@@ -26,5 +26,7 @@ export const env = {
   databaseUrl: requireEnv("DATABASE_URL"),
   port: requirePositiveInt("PORT", "3000"),
   bcryptSaltRounds: requirePositiveInt("BCRYPT_SALT_ROUNDS", "10"),
+  jwtSecret: requireEnv("JWT_SECRET"),
+  jwtExpiresIn: requireEnv("JWT_EXPIRES_IN", "1h"),
   nodeEnv: process.env.NODE_ENV ?? "production",
 };

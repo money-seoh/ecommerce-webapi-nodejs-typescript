@@ -1,14 +1,18 @@
 import { RoleRepository } from "../repositories/role.repository";
 import { UserRepository, UserWithRole } from "../repositories/user.repository";
-import { hashPassword } from "../utils/password";
-import { ConflictError, InternalError } from "../utils/errors";
+import { comparePassword, hashPassword } from "../utils/password";
+import { ConflictError, ForbiddenError, InternalError, UnauthorizedError } from "../utils/errors";
 import {
+  AuthTokenResponseDto,
+  CustomerLoginDto,
   CreateAdminUserDto,
   RegisterCustomerDto,
   RoleName,
   ROLE_NAMES,
   UserResponseDto,
 } from "../dtos/user.dto";
+import { createAccessToken } from "../utils/token";
+import { env } from "../config/env";
 
 export class UserService {
   constructor(
@@ -70,6 +74,34 @@ export class UserService {
     });
 
     return this.toResponseDto(user);
+  }
+
+  async loginCustomer(dto: CustomerLoginDto): Promise<AuthTokenResponseDto> {
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    const user = await this.userRepository.findByEmail(normalizedEmail);
+    if (!user) {
+      throw new UnauthorizedError("Invalid email or password");
+    }
+
+    const passwordMatches = await comparePassword(dto.password, user.passwordHash);
+    if (!passwordMatches) {
+      throw new UnauthorizedError("Invalid email or password");
+    }
+
+    const hasCustomerRole = user.userRoles.some(({ role }) => role.name === ROLE_NAMES.CUSTOMER);
+    if (!hasCustomerRole) {
+      throw new ForbiddenError("Account is not authorized for customer access");
+    }
+
+    if (!user.isActive || user.deactivatedAt !== null) {
+      throw new ForbiddenError("Customer account is not active");
+    }
+
+    return {
+      accessToken: createAccessToken(user.id, ROLE_NAMES.CUSTOMER),
+      tokenType: "Bearer",
+      expiresIn: env.jwtExpiresIn,
+    };
   }
 
   async hasAnyAdminUsers(): Promise<boolean> {
