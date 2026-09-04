@@ -50,6 +50,15 @@ export const registerCustomerSchema = z.object(baseUserFields);
 
 export type RegisterCustomerDto = z.infer<typeof registerCustomerSchema>;
 
+export const customerLoginSchema = z
+  .object({
+    email: z.string().trim().email("Email must be a valid email address"),
+    password: z.string().min(1, "Password is required"),
+  })
+  .strict();
+
+export type CustomerLoginDto = z.infer<typeof customerLoginSchema>;
+
 export interface UserResponseDto {
   id: number;
   firstName: string;
@@ -61,4 +70,10 @@ export interface UserResponseDto {
   deactivatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface AuthTokenResponseDto {
+  accessToken: string;
+  tokenType: "Bearer";
+  expiresIn: string;
 }

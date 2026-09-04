@@ -6,3 +6,5 @@ process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? "sqlserver://localhost:1433;database=test;trustServerCertificate=true";
 process.env.PORT = process.env.PORT ?? "3000";
 process.env.BCRYPT_SALT_ROUNDS = process.env.BCRYPT_SALT_ROUNDS ?? "4";
+process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-jwt-secret";
+process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "1h";

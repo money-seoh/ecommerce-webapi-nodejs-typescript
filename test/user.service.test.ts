@@ -1,13 +1,19 @@
 import { UserService } from "../src/services/user.service";
 import { UserRepository } from "../src/repositories/user.repository";
 import { RoleRepository } from "../src/repositories/role.repository";
-import { ConflictError, InternalError } from "../src/utils/errors";
+import { ConflictError, ForbiddenError, InternalError, UnauthorizedError } from "../src/utils/errors";
 import { buildUserWithRole } from "./fixtures/user.fixtures";
+import { comparePassword } from "../src/utils/password";
+import { createAccessToken } from "../src/utils/token";
 
 jest.mock("../src/repositories/user.repository");
 jest.mock("../src/repositories/role.repository");
 jest.mock("../src/utils/password", () => ({
   hashPassword: jest.fn().mockResolvedValue("hashed-password"),
+  comparePassword: jest.fn(),
+}));
+jest.mock("../src/utils/token", () => ({
+  createAccessToken: jest.fn().mockReturnValue("signed-jwt"),
 }));
 
 describe("UserService", () => {
@@ -21,6 +27,8 @@ describe("UserService", () => {
     ) as jest.Mocked<UserRepository>;
     roleRepository = new RoleRepository({} as never) as jest.Mocked<RoleRepository>;
     service = new UserService(userRepository, roleRepository);
+    jest.mocked(comparePassword).mockReset();
+    jest.mocked(createAccessToken).mockClear();
   });
 
   describe("createAdminUser", () => {
@@ -193,6 +201,101 @@ describe("UserService", () => {
           password: "Password1",
         }),
       ).rejects.toBeInstanceOf(InternalError);
+    });
+  });
+
+  describe("loginCustomer", () => {
+    it("should return an access token when credentials belong to an active customer", async () => {
+      userRepository.findByEmail.mockResolvedValue(buildUserWithRole({ isActive: true }));
+      jest.mocked(comparePassword).mockResolvedValue(true);
+
+      await expect(
+        service.loginCustomer({
+          email: "Jane.Doe@Example.COM",
+          password: "Password1",
+        }),
+      ).resolves.toEqual({
+        accessToken: "signed-jwt",
+        tokenType: "Bearer",
+        expiresIn: "1h",
+      });
+
+      expect(userRepository.findByEmail).toHaveBeenCalledWith("jane.doe@example.com");
+      expect(comparePassword).toHaveBeenCalledWith("Password1", "hashed-password");
+      expect(createAccessToken).toHaveBeenCalledWith(1, "Customer");
+    });
+
+    it("should reject login when no user exists for the provided email", async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        service.loginCustomer({
+          email: "jane.doe@example.com",
+          password: "Password1",
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedError);
+
+      expect(comparePassword).not.toHaveBeenCalled();
+    });
+
+    it("should reject login when the password is incorrect", async () => {
+      userRepository.findByEmail.mockResolvedValue(buildUserWithRole({ isActive: true }));
+      jest.mocked(comparePassword).mockResolvedValue(false);
+
+      await expect(
+        service.loginCustomer({
+          email: "jane.doe@example.com",
+          password: "WrongPassword1",
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedError);
+
+      expect(createAccessToken).not.toHaveBeenCalled();
+    });
+
+    it("should reject login when the account is not active", async () => {
+      userRepository.findByEmail.mockResolvedValue(buildUserWithRole({ isActive: false }));
+      jest.mocked(comparePassword).mockResolvedValue(true);
+
+      await expect(
+        service.loginCustomer({
+          email: "jane.doe@example.com",
+          password: "Password1",
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it("should reject login when the account is deactivated", async () => {
+      userRepository.findByEmail.mockResolvedValue(
+        buildUserWithRole({
+          isActive: true,
+          deactivatedAt: new Date("2024-01-02T00:00:00.000Z"),
+        }),
+      );
+      jest.mocked(comparePassword).mockResolvedValue(true);
+
+      await expect(
+        service.loginCustomer({
+          email: "jane.doe@example.com",
+          password: "Password1",
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it("should reject login when the account does not have the Customer role", async () => {
+      userRepository.findByEmail.mockResolvedValue(
+        buildUserWithRole({
+          isActive: true,
+          userRoles: [{ role: { id: 1, name: "Admin" } }],
+        }),
+      );
+      jest.mocked(comparePassword).mockResolvedValue(true);
+
+      await expect(
+        service.loginCustomer({
+          email: "jane.doe@example.com",
+          password: "Password1",
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
     });
   });
 
