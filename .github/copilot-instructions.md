@@ -54,5 +54,5 @@ No `package.json`/scaffolding exists yet in this repo. Once the Node/TypeScript 
 
 ## Issue and PR Workflow Updates
 - When a branch is created for an issue, move that issue to the **In-progress** column in the project board.
-- When a pull request is raised from the same branch, move the linked issue to the **Review** column.
+- When a pull request is raised from the same branch, move the linked issue to the **Code Review** column.
 - When that pull request is merged, move the linked issue to the **Done** column and close the issue.
