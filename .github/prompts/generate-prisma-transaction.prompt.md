@@ -9,3 +9,4 @@ Generate the transactional workflow the user specifies in this conversation, fol
 - Enforce atomic, race-safe stock/inventory checks (conditional updates, not read-then-write).
 - Keep any external call (e.g. a payment processor) outside the database transaction; reconcile by idempotency key if persistence fails after an external call succeeds.
 - Return/throw typed domain errors on failure instead of leaking Prisma exceptions.
+- Preserve security and auditability: log transaction intent/outcomes without secrets, and ensure retries do not duplicate charges or state transitions.

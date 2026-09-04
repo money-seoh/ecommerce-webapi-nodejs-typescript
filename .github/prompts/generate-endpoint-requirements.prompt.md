@@ -28,6 +28,7 @@ Output requirements endpoint-by-endpoint, and include:
 - Sensitive data handling (hash/redact/no plaintext)
 - Abuse protections (rate limit, lockout, anti-automation where applicable)
 - Security-focused error behavior (no internal leakage)
+- Explicit non-functional guardrails (no mass assignment, no user enumeration, no token/credential logging)
 
 4. Method-level checklist alignment
 - Confirm each endpoint aligns with its method baseline (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) and required security controls.

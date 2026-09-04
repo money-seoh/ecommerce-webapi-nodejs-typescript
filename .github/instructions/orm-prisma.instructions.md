@@ -84,6 +84,12 @@ Catch and translate Prisma exceptions into domain errors at the repository bound
 - `PrismaClientValidationError` -> map to a sanitized internal error; request/domain validation must produce `ValidationError` before the repository calls Prisma.
 Never let a raw Prisma error reach the controller or the HTTP response.
 
+## Security Guardrails for Data Access
+- Never use `$queryRawUnsafe` / `$executeRawUnsafe`; raw SQL, when unavoidable, must use Prisma parameterized tagged templates only.
+- Use least-data queries (`select`/targeted `include`) to avoid accidental exposure of sensitive fields such as password hashes.
+- Validate ownership/authorization constraints before reads and writes that touch user-scoped data.
+- Keep credential and secret fields out of repository return DTOs unless explicitly required for internal authentication logic.
+
 ## Repository Pattern
 Repositories wrap all Prisma access; services depend only on repository interfaces. Create one shared `PrismaClient` in `src/config/` for the application runtime and inject it into repositories; never instantiate a client per repository or request.
 

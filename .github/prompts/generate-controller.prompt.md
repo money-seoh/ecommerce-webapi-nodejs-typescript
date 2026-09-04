@@ -9,4 +9,6 @@ Generate a REST controller for the resource the user specifies in this conversat
 - Create the controller with thin handlers that call a service (stub the service interface if it does not exist yet).
 - Create the route file, versioned under `/api/v1/`.
 - Use the standard success/error envelopes and correct HTTP status codes.
-- Validate every field via a validation schema (e.g. zod or class-validator) enforced in middleware before the controller runs.
+- Validate every field with strict schema validation (`zod` preferred); reject unknown fields.
+- Add required security controls for endpoint type: authentication/authorization for protected routes, rate limiting for abuse-prone routes, and non-enumerating auth failures.
+- Never expose secrets, password hashes, or internal error details in response DTOs.

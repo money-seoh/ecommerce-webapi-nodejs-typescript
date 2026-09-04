@@ -8,3 +8,4 @@ Generate Jest tests for the file or feature the user specifies in this conversat
 - Unit tests: mock dependencies (repositories/external services), cover the success path plus domain edge cases (out-of-stock, invalid transition, duplicate payment, validation failure).
 - Integration tests: exercise the route end-to-end against a test database, resetting state between tests.
 - Use descriptive `should <behavior> when <condition>` test names.
+- Include security-path tests (unauthorized/forbidden access, strict payload rejection, rate-limit behavior where configured, and secret-safe responses).

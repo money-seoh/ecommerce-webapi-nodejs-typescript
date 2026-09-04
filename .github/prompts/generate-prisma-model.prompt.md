@@ -9,3 +9,4 @@ Generate the Prisma data-access layer for the entity the user specifies in this 
 - Generate the migration (`npx prisma migrate dev --name <change>`).
 - Create a repository in `src/repositories/` wrapping Prisma Client, exposing CRUD plus any domain-specific queries (e.g. `findBySku`, `search`, `paginate`).
 - Translate Prisma exceptions into domain errors at the repository boundary.
+- Avoid exposing sensitive fields in repository return shapes and avoid unsafe raw SQL APIs.
