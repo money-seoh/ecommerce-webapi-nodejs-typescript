@@ -13,3 +13,10 @@ applyTo: "src/**/*.ts"
 ## Prisma Errors
 - Catch `PrismaClientKnownRequestError` and `PrismaClientValidationError` at the repository boundary; never let raw Prisma errors propagate to services or controllers.
 - Map known request-error codes to domain errors, e.g. `P2002` (unique constraint) -> `ConflictError` and `P2025` (record not found) -> `NotFoundError`. Translate `PrismaClientValidationError` to a sanitized internal error; request/domain validation must produce `ValidationError` before Prisma is called.
+
+## Security Guardrails for Error Handling
+- Authentication/authorization failures must not expose sensitive implementation details; use safe messages such as invalid credentials or insufficient permissions.
+- Normalize unexpected exceptions to `INTERNAL_ERROR` with a generic message and without stack traces in responses.
+- Redact or omit credential-bearing fields (`password`, `authorization`, `cookie`, JWTs, API keys) from all logs.
+- Keep rate-limit, lockout, and abuse-control failures explicit (`429`) but non-revealing.
+- Do not place full request bodies in error logs for auth/payment/profile endpoints unless explicitly sanitized.

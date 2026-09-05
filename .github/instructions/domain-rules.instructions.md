@@ -22,3 +22,10 @@ applyTo: "src/services/**"
 ## Order Lifecycle
 - Valid order status transitions: PENDING -> PAID -> FULFILLED -> COMPLETED; PENDING may transition to CANCELLED, and PAID may transition to REFUNDED.
 - Reject any transition not in the allowed state machine; log rejected transitions.
+
+## User Management & Authentication
+- Normalize user identifiers such as email (trim + lowercase) before lookup, uniqueness checks, and persistence.
+- Customer self-registration must always enforce `role=Customer` and server-defined activation defaults, regardless of request payload.
+- Passwords must be hashed with bcrypt before persistence; plaintext passwords must never leave request scope.
+- Authentication failures must return non-enumerating responses (same behavior/message for unknown user and wrong password).
+- Bootstrap admin-creation bypass is allowed only until the first active admin exists; afterwards admin-only authorization is mandatory.

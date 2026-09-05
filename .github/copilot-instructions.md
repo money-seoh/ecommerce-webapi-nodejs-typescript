@@ -9,21 +9,40 @@ Layered architecture with one-way dependency flow: Controller -> Service -> Repo
 - Services: own business/domain rules and orchestrate repositories.
 - Repositories: the only layer allowed to talk to Prisma Client/the database.
 
-Suggested folder structure:
+Current project structure:
 ```
 prisma/
   schema.prisma
-  migrations/    # Prisma migration files
+  migrations/             # Prisma migration files
+  seed.ts
 src/
-  controllers/
-  services/
-  repositories/
-  dtos/
-  routes/
-  middlewares/
-  utils/
+  app.ts
+  server.ts
   config/
-test/            # unit + integration tests
+    container.ts
+    env.ts
+    prisma.ts
+  controllers/
+    user.controller.ts
+  dtos/
+    user.dto.ts
+  middlewares/
+    bootstrap-admin-auth.middleware.ts
+    error-handler.middleware.ts
+  repositories/
+    role.repository.ts
+    user.repository.ts
+  routes/
+    admin-user.routes.ts
+    customer.routes.ts
+    index.ts
+  services/
+    user.service.ts
+  utils/
+    errors.ts
+    password.ts
+    token.ts
+test/                        # unit + integration tests
 ```
 
 ## Code Style
@@ -50,7 +69,29 @@ See `.github/instructions/domain-rules.instructions.md`.
 Jest for unit and integration tests. See `.github/instructions/testing.instructions.md`.
 
 ## Build and Test
-No `package.json`/scaffolding exists yet in this repo. Once the Node/TypeScript project is initialized, update this section with the real install/build/test/lint commands.
+- Install dependencies: `npm install`
+- Start dev server: `npm run dev`
+- Lint: `npm run lint`
+- Build: `npm run build`
+- Test: `npm test`
+- Prisma generate: `npm run prisma:generate`
+- Prisma migrate (local): `npm run prisma:migrate`
+
+## Current API Baseline (v1)
+- `GET /api/v1/health` -> health probe.
+- `POST /api/v1/admin/users` -> admin-managed user creation.
+- `POST /api/v1/customers/register` -> customer self-registration.
+- `POST /api/v1/customers/login` -> customer authentication (access token response).
+
+## Security Guardrails (Required)
+- Validate all request payloads with strict schemas and reject unknown fields.
+- Keep authentication/authorization checks in middleware and service boundaries; protected endpoints must fail closed (`401/403`) when context is missing or insufficient.
+- Never trust client-supplied role or activation fields for self-registration flows; enforce role/status server-side.
+- Keep brute-force and abuse protections on auth-sensitive routes (rate limiting, lockout controls where applicable).
+- Use bcrypt hashing for stored passwords; never store or log plaintext credentials.
+- Use JWTs with controlled expiry and least-privilege claims; never log or return secrets (`JWT_SECRET`, hashes, tokens in logs).
+- Preserve centralized sanitized error handling; do not leak stack traces/internal DB details in API responses.
+- At repository boundaries, translate Prisma exceptions to domain errors and avoid raw SQL unless strictly necessary; never use unsafe raw query APIs.
 
 ## Issue and PR Workflow Updates
 - When a branch is created for an issue, move that issue to the **In-progress** column in the project board.

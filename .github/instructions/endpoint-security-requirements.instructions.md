@@ -51,6 +51,7 @@ Use this guide when documenting API requirements by HTTP method and when writing
 - Apply brute-force protection and rate limiting where relevant (especially auth endpoints).
 - Enforce credential/password policy where applicable.
 - Never log secrets or credentials in plain text.
+- Prevent mass assignment by rejecting unknown or privileged fields from untrusted clients.
 
 ### PUT/PATCH security criteria
 - Requires authentication and authorization checks before update.
@@ -73,3 +74,12 @@ For each endpoint, include:
 - Sensitive data handling rules (hashing, redaction, no plaintext exposure).
 - Abuse controls (rate limit, lockout, idempotency where applicable).
 - Expected security-related status codes (`400`, `401`, `403`, `404`, `409`, `429` as applicable).
+
+## Additional Security Guardrails (Industry Baseline)
+- Authentication tokens: define algorithm, expiry, claim set, and signing-key handling; secrets must come from environment variables and never be hardcoded.
+- Credential handling: passwords must be hashed with a strong one-way algorithm (bcrypt/argon2), never stored or logged in plaintext.
+- Error response hygiene: authentication and account-discovery flows must avoid user-enumeration leaks.
+- Logging hygiene: explicitly redact authorization headers, cookies, tokens, passwords, and payment credentials.
+- Data minimization: response DTOs must expose only fields required by clients; internal IDs/secrets should be omitted unless strictly necessary.
+- Secure defaults: registration/profile endpoints must enforce server-side defaults for role/activation/ownership fields.
+- Input integrity: require strict schema validation and rejection of unsupported fields for all write operations.
