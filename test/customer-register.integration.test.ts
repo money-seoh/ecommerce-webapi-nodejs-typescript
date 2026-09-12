@@ -41,23 +41,10 @@ describe("POST /api/v1/customers/register", () => {
     expect(response.body.data).toMatchObject({ email: "john.smith@example.com", role: "Customer", isActive: true });
   });
 
-  it("should ignore client-submitted role/isActive fields", async () => {
-    registerCustomerSpy.mockResolvedValue({
-      id: 3,
-      firstName: "John",
-      lastName: "Smith",
-      email: "john.smith2@example.com",
-      mobileNumber: "+15559876543",
-      role: "Customer",
-      isActive: true,
-      deactivatedAt: null,
-      createdAt: new Date("2024-01-01T00:00:00.000Z"),
-      updatedAt: new Date("2024-01-01T00:00:00.000Z"),
-    });
-
+  it("should return 400 when client submits unknown fields such as role/isActive", async () => {
     const app = createApp();
 
-    await request(app)
+    const response = await request(app)
       .post("/api/v1/customers/register")
       .send({
         firstName: "John",
@@ -69,9 +56,9 @@ describe("POST /api/v1/customers/register", () => {
         isActive: false,
       });
 
-    const passedDto = registerCustomerSpy.mock.calls[0][0];
-    expect(passedDto).not.toHaveProperty("role");
-    expect(passedDto).not.toHaveProperty("isActive");
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(registerCustomerSpy).not.toHaveBeenCalled();
   });
 
   it("should return 400 when password does not meet the security policy", async () => {
