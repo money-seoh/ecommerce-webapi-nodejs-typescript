@@ -37,7 +37,7 @@ export const createAdminUserSchema = z.object({
   ...baseUserFields,
   role: z.enum([ROLE_NAMES.ADMIN, ROLE_NAMES.CUSTOMER]),
   isActive: z.boolean().optional(),
-});
+}).strict();
 
 export type CreateAdminUserDto = z.infer<typeof createAdminUserSchema>;
 
@@ -46,8 +46,7 @@ export type CreateAdminUserDto = z.infer<typeof createAdminUserSchema>;
  * Role and status are not accepted from the client; the service always
  * assigns role=Customer and isActive=true.
  */
-export const registerCustomerSchema = z.object(baseUserFields);
-
+export const registerCustomerSchema = z.object(baseUserFields).strict();
 export type RegisterCustomerDto = z.infer<typeof registerCustomerSchema>;
 
 export const customerLoginSchema = z

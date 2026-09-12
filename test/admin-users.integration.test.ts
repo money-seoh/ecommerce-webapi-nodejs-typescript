@@ -97,6 +97,24 @@ describe("POST /api/v1/admin/users", () => {
     expect(Array.isArray(response.body.error.details)).toBe(true);
   });
 
+  it("should return 400 when unknown fields are provided in the payload", async () => {
+    const app = createApp();
+
+    const response = await request(app).post("/api/v1/admin/users").send({
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane.doe@example.com",
+      mobileNumber: "+15551234567",
+      password: "Password1",
+      role: "Admin",
+      unknownField: "unexpected",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(createAdminUserSpy).not.toHaveBeenCalled();
+  });
+
   it("should return 500 when the service throws an unexpected error", async () => {
     createAdminUserSpy.mockRejectedValue(new Error("unexpected"));
 
