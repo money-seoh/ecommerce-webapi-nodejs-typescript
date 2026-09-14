@@ -21,7 +21,7 @@ describe("POST /api/v1/customers/register", () => {
       email: "john.smith@example.com",
       mobileNumber: "+15559876543",
       role: "Customer",
-      isActive: true,
+      isActive: false,
       deactivatedAt: null,
       createdAt: new Date("2024-01-01T00:00:00.000Z"),
       updatedAt: new Date("2024-01-01T00:00:00.000Z"),
@@ -38,7 +38,7 @@ describe("POST /api/v1/customers/register", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(response.body.data).toMatchObject({ email: "john.smith@example.com", role: "Customer", isActive: true });
+    expect(response.body.data).toMatchObject({ email: "john.smith@example.com", role: "Customer", isActive: false });
   });
 
   it("should return 400 when client submits unknown fields such as role/isActive", async () => {

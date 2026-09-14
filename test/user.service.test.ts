@@ -32,7 +32,7 @@ describe("UserService", () => {
   });
 
   describe("createAdminUser", () => {
-    it("should default isActive to false when not provided", async () => {
+    it("should create new Admin users as active", async () => {
       userRepository.findByEmail.mockResolvedValue(null);
       roleRepository.findByName.mockResolvedValue({
         id: 1,
@@ -41,7 +41,7 @@ describe("UserService", () => {
         updatedAt: new Date(),
       });
       userRepository.create.mockResolvedValue(
-        buildUserWithRole({ isActive: false, userRoles: [{ role: { id: 1, name: "Admin" } }] }),
+        buildUserWithRole({ isActive: true, userRoles: [{ role: { id: 1, name: "Admin" } }] }),
       );
 
       await service.createAdminUser({
@@ -56,21 +56,21 @@ describe("UserService", () => {
       expect(userRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           email: "jane.doe@example.com",
-          isActive: false,
+          isActive: true,
           roleId: 1,
         }),
       );
     });
 
-    it("should respect explicit isActive value when provided", async () => {
+    it("should create new Customer users as inactive", async () => {
       userRepository.findByEmail.mockResolvedValue(null);
       roleRepository.findByName.mockResolvedValue({
-        id: 1,
-        name: "Admin",
+        id: 2,
+        name: "Customer",
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      userRepository.create.mockResolvedValue(buildUserWithRole({ isActive: true }));
+      userRepository.create.mockResolvedValue(buildUserWithRole({ isActive: false }));
 
       await service.createAdminUser({
         firstName: "Jane",
@@ -78,12 +78,11 @@ describe("UserService", () => {
         email: "jane.doe@example.com",
         mobileNumber: "+15551234567",
         password: "Password1",
-        role: "Admin",
-        isActive: true,
+        role: "Customer",
       });
 
       expect(userRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ isActive: true }),
+        expect.objectContaining({ isActive: false, roleId: 2 }),
       );
     });
 
@@ -121,7 +120,7 @@ describe("UserService", () => {
   });
 
   describe("registerCustomer", () => {
-    it("should force role=Customer and isActive=true regardless of input", async () => {
+    it("should force role=Customer and isActive=false regardless of input", async () => {
       userRepository.findByEmail.mockResolvedValue(null);
       roleRepository.findByName.mockResolvedValue({
         id: 2,
@@ -129,7 +128,7 @@ describe("UserService", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      userRepository.create.mockResolvedValue(buildUserWithRole({ isActive: true }));
+      userRepository.create.mockResolvedValue(buildUserWithRole({ isActive: false }));
 
       await service.registerCustomer({
         firstName: "Jane",
@@ -143,7 +142,7 @@ describe("UserService", () => {
       expect(userRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           email: "jane.doe@example.com",
-          isActive: true,
+          isActive: false,
           roleId: 2,
         }),
       );
@@ -157,7 +156,7 @@ describe("UserService", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      userRepository.create.mockResolvedValue(buildUserWithRole({ isActive: true }));
+      userRepository.create.mockResolvedValue(buildUserWithRole({ isActive: false }));
 
       await service.registerCustomer({
         firstName: "Jane",

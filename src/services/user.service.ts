@@ -22,7 +22,7 @@ export class UserService {
 
   /**
    * Admin-initiated user creation. Admin may create Admin or Customer
-   * accounts; isActive defaults to false (Inactive) when not provided.
+   * accounts; activation is derived server-side from the assigned role.
    */
   async createAdminUser(dto: CreateAdminUserDto): Promise<UserResponseDto> {
     const normalizedEmail = this.normalizeEmail(dto.email);
@@ -41,7 +41,7 @@ export class UserService {
       email: normalizedEmail,
       mobileNumber: dto.mobileNumber,
       passwordHash,
-      isActive: dto.isActive ?? false,
+      isActive: dto.role === ROLE_NAMES.ADMIN,
       roleId: role.id,
     });
 
@@ -50,7 +50,7 @@ export class UserService {
 
   /**
    * Customer self-registration. Role is always Customer and the account is
-   * always created Active, regardless of any client-submitted values.
+   * always created Inactive, regardless of any client-submitted values.
    */
   async registerCustomer(dto: RegisterCustomerDto): Promise<UserResponseDto> {
     const normalizedEmail = this.normalizeEmail(dto.email);
@@ -69,7 +69,7 @@ export class UserService {
       email: normalizedEmail,
       mobileNumber: dto.mobileNumber,
       passwordHash,
-      isActive: true,
+      isActive: false,
       roleId: role.id,
     });
 
