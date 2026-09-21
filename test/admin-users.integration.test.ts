@@ -27,7 +27,7 @@ describe("POST /api/v1/admin/users", () => {
       email: "jane.doe@example.com",
       mobileNumber: "+15551234567",
       role: "Admin",
-      isActive: false,
+      isActive: true,
       deactivatedAt: null,
       createdAt: new Date("2024-01-01T00:00:00.000Z"),
       updatedAt: new Date("2024-01-01T00:00:00.000Z"),
@@ -45,8 +45,37 @@ describe("POST /api/v1/admin/users", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(response.body.data).toMatchObject({ email: "jane.doe@example.com", role: "Admin" });
+    expect(response.body.data).toMatchObject({ email: "jane.doe@example.com", role: "Admin", isActive: true });
     expect(userController).toBeDefined();
+  });
+
+  it("should create a customer user as inactive when the payload is valid", async () => {
+    createAdminUserSpy.mockResolvedValue({
+      id: 2,
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      role: "Customer",
+      isActive: false,
+      deactivatedAt: null,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-01T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+
+    const response = await request(app).post("/api/v1/admin/users").send({
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      password: "Password1",
+      role: "Customer",
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data).toMatchObject({ email: "john.smith@example.com", role: "Customer", isActive: false });
   });
 
   it("should return 400 when required fields are missing", async () => {
@@ -97,7 +126,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(Array.isArray(response.body.error.details)).toBe(true);
   });
 
-  it("should return 400 when unknown fields are provided in the payload", async () => {
+  it("should return 400 when client attempts to control activation in the payload", async () => {
     const app = createApp();
 
     const response = await request(app).post("/api/v1/admin/users").send({
@@ -107,7 +136,7 @@ describe("POST /api/v1/admin/users", () => {
       mobileNumber: "+15551234567",
       password: "Password1",
       role: "Admin",
-      unknownField: "unexpected",
+      isActive: false,
     });
 
     expect(response.status).toBe(400);
@@ -182,7 +211,7 @@ describe("POST /api/v1/admin/users", () => {
       email: "jane.doe@example.com",
       mobileNumber: "+15551234567",
       role: "Admin",
-      isActive: false,
+      isActive: true,
       deactivatedAt: null,
       createdAt: new Date("2024-01-01T00:00:00.000Z"),
       updatedAt: new Date("2024-01-01T00:00:00.000Z"),
@@ -203,6 +232,6 @@ describe("POST /api/v1/admin/users", () => {
       });
 
     expect(response.status).toBe(201);
-    expect(response.body.data).toMatchObject({ email: "jane.doe@example.com", role: "Admin" });
+    expect(response.body.data).toMatchObject({ email: "jane.doe@example.com", role: "Admin", isActive: true });
   });
 });

@@ -4,7 +4,7 @@ import { userController } from "../config/container";
 import { TooManyRequestsError } from "../utils/errors";
 
 // Public self-registration endpoint: role is always forced to Customer and
-// status to Active by the service layer, regardless of request payload.
+// status to Inactive by the service layer, regardless of request payload.
 const router: Router = Router();
 const customerLoginRateLimit = rateLimit({
   windowMs: 60_000,
