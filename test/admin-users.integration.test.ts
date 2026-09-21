@@ -332,4 +332,36 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.body.error.code).toBe("FORBIDDEN");
     expect(activateUserSpy).not.toHaveBeenCalled();
   });
+
+  it("should return 429 when the activation rate limit is exceeded", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+    activateUserSpy.mockResolvedValue({
+      id: 2,
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      role: "Customer",
+      isActive: true,
+      deactivatedAt: null,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-02T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await request(app)
+        .patch("/api/v1/admin/users/2/activate")
+        .set("authorization", "******")
+        .set("x-user-role", "Admin");
+    }
+
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/activate")
+      .set("authorization", "******")
+      .set("x-user-role", "Admin");
+
+    expect(response.status).toBe(429);
+    expect(response.body.error.code).toBe("TOO_MANY_REQUESTS");
+  });
 });

@@ -14,6 +14,15 @@ const adminUserCreationRateLimit = rateLimit({
     next(new TooManyRequestsError("Too many admin user creation attempts"));
   },
 });
+const adminUserActivationRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many admin user activation attempts"));
+  },
+});
 
 router.post(
   "/",
@@ -49,9 +58,12 @@ router.post(
  *         description: User not found
  *       409:
  *         description: User account is already active
+ *       429:
+ *         description: Too many activation attempts
  */
 router.patch(
   "/:userId/activate",
+  adminUserActivationRateLimit,
   requireAdminAuthAfterBootstrap(userService),
   userController.activateUserByAdmin,
 );
