@@ -128,4 +128,28 @@ export class UserRepository {
       throw error;
     }
   }
+
+  async updateActivationStatus(id: number, isActive: boolean, deactivatedAt: Date | null): Promise<UserWithRole> {
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data: {
+          isActive,
+          deactivatedAt,
+        },
+        include: userWithRoleInclude,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2025") {
+          throw new NotFoundError("User not found");
+        }
+        throw new InternalError("Database error in updateActivationStatus");
+      }
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new InternalError("Invalid query for updateActivationStatus");
+      }
+      throw error;
+    }
+  }
 }

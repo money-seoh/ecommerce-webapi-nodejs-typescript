@@ -9,6 +9,7 @@ interface MockPrismaClient {
     findUnique: jest.Mock;
     create: jest.Mock;
     count: jest.Mock;
+    update: jest.Mock;
   };
 }
 
@@ -19,6 +20,7 @@ function makePrismaClient(): MockPrismaClient {
       findUnique: jest.fn(),
       create: jest.fn(),
       count: jest.fn(),
+      update: jest.fn(),
     },
   };
 }
@@ -221,6 +223,49 @@ describe("UserRepository", () => {
       (prisma.user.count as jest.Mock).mockRejectedValue(makeKnownRequestError("P2001"));
       const repo = new UserRepository(prisma as never);
       await expect(repo.hasAnyAdminUser()).rejects.toBeInstanceOf(InternalError);
+    });
+  });
+
+  describe("updateActivationStatus", () => {
+    it("should update activation state and clear deactivatedAt", async () => {
+      const user = buildUserWithRole({ id: 7, isActive: true, deactivatedAt: null });
+      const prisma = makePrismaClient();
+      (prisma.user.update as jest.Mock).mockResolvedValue(user);
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.updateActivationStatus(7, true, null)).resolves.toEqual(user);
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 7 },
+        data: {
+          isActive: true,
+          deactivatedAt: null,
+        },
+        include: expect.any(Object),
+      });
+    });
+
+    it("should throw NotFoundError on P2025", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.update as jest.Mock).mockRejectedValue(makeKnownRequestError("P2025"));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.updateActivationStatus(7, true, null)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("should throw InternalError on PrismaClientKnownRequestError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.update as jest.Mock).mockRejectedValue(makeKnownRequestError("P2001"));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.updateActivationStatus(7, true, null)).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should throw InternalError on PrismaClientValidationError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.user.update as jest.Mock).mockRejectedValue(makeValidationError());
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.updateActivationStatus(7, true, null)).rejects.toBeInstanceOf(InternalError);
     });
   });
 });

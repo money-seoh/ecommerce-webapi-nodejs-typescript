@@ -22,4 +22,38 @@ router.post(
   userController.createUserByAdmin,
 );
 
+/**
+ * @openapi
+ * /api/v1/admin/users/{userId}/activate:
+ *   patch:
+ *     summary: Activate an inactive user account
+ *     tags:
+ *       - Admin Users
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *     responses:
+ *       200:
+ *         description: User account activated successfully
+ *       400:
+ *         description: Invalid user id
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin role is required
+ *       404:
+ *         description: User not found
+ *       409:
+ *         description: User account is already active
+ */
+router.patch(
+  "/:userId/activate",
+  requireAdminAuthAfterBootstrap(userService),
+  userController.activateUserByAdmin,
+);
+
 export default router;

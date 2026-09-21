@@ -5,10 +5,12 @@ import { UserService } from "../src/services/user.service";
 
 describe("POST /api/v1/admin/users", () => {
   let createAdminUserSpy: jest.SpyInstance;
+  let activateUserSpy: jest.SpyInstance;
   let hasAnyAdminUsersSpy: jest.SpyInstance;
 
   beforeEach(() => {
     createAdminUserSpy = jest.spyOn(UserService.prototype, "createAdminUser");
+    activateUserSpy = jest.spyOn(UserService.prototype, "activateUser");
     hasAnyAdminUsersSpy = jest
       .spyOn(UserService.prototype, "hasAnyAdminUsers")
       .mockResolvedValue(false);
@@ -16,6 +18,7 @@ describe("POST /api/v1/admin/users", () => {
 
   afterEach(() => {
     createAdminUserSpy.mockRestore();
+    activateUserSpy.mockRestore();
     hasAnyAdminUsersSpy.mockRestore();
   });
 
@@ -233,5 +236,100 @@ describe("POST /api/v1/admin/users", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.data).toMatchObject({ email: "jane.doe@example.com", role: "Admin", isActive: true });
+  });
+
+  it("should activate an inactive user and return 200 when an Admin exists and caller is Admin", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+    activateUserSpy.mockResolvedValue({
+      id: 2,
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      role: "Customer",
+      isActive: true,
+      deactivatedAt: null,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-02T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/activate")
+      .set("authorization", "******")
+      .set("x-user-role", "Admin");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ id: 2, isActive: true, deactivatedAt: null });
+    expect(activateUserSpy).toHaveBeenCalledWith(2);
+  });
+
+  it("should return 400 when activation userId path param is invalid", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/not-a-number/activate")
+      .set("authorization", "******")
+      .set("x-user-role", "Admin");
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(activateUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("should return 404 when activation target does not exist", async () => {
+    const { NotFoundError } = jest.requireActual("../src/utils/errors");
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+    activateUserSpy.mockRejectedValue(new NotFoundError("User not found"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/999/activate")
+      .set("authorization", "******")
+      .set("x-user-role", "Admin");
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("should return 409 when activation target is already active", async () => {
+    const { ConflictError } = jest.requireActual("../src/utils/errors");
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+    activateUserSpy.mockRejectedValue(new ConflictError("User account is already active"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/activate")
+      .set("authorization", "******")
+      .set("x-user-role", "Admin");
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe("CONFLICT");
+  });
+
+  it("should return 401 for activation when an Admin already exists and no auth token is provided", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+
+    const app = createApp();
+    const response = await request(app).patch("/api/v1/admin/users/2/activate");
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(activateUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("should return 403 for activation when an Admin exists and caller is not Admin", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/activate")
+      .set("authorization", "******")
+      .set("x-user-role", "Customer");
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("FORBIDDEN");
+    expect(activateUserSpy).not.toHaveBeenCalled();
   });
 });
