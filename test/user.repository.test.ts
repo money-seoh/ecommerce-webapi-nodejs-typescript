@@ -238,6 +238,10 @@ describe("UserRepository", () => {
       const repo = new UserRepository(prisma as never);
 
       await expect(repo.activateById(7)).resolves.toEqual(user);
+      expect(prisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
       expect(prisma.user.updateMany).toHaveBeenCalledWith({
         where: {
           id: 7,

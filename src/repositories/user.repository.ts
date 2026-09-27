@@ -131,53 +131,56 @@ export class UserRepository {
 
   async activateById(id: number): Promise<UserWithRole> {
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const activationResult = await tx.user.updateMany({
-          where: {
-            id,
-            OR: [
-              { isActive: false },
-              { deactivatedAt: { not: null } },
-            ],
-          },
-          data: {
-            isActive: true,
-            deactivatedAt: null,
-          },
-        });
-
-        if (activationResult.count === 0) {
-          const existingUser = await tx.user.findUnique({
-            where: { id },
-            select: {
-              id: true,
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const activationResult = await tx.user.updateMany({
+            where: {
+              id,
+              OR: [
+                { isActive: false },
+                { deactivatedAt: { not: null } },
+              ],
+            },
+            data: {
               isActive: true,
-              deactivatedAt: true,
+              deactivatedAt: null,
             },
           });
 
-          if (!existingUser) {
+          if (activationResult.count === 0) {
+            const existingUser = await tx.user.findUnique({
+              where: { id },
+              select: {
+                id: true,
+                isActive: true,
+                deactivatedAt: true,
+              },
+            });
+
+            if (!existingUser) {
+              throw new NotFoundError("User not found");
+            }
+
+            if (existingUser.isActive && existingUser.deactivatedAt === null) {
+              throw new ConflictError("User account is already active");
+            }
+
+            throw new InternalError("User activation state could not be updated");
+          }
+
+          const activatedUser = await tx.user.findUnique({
+            where: { id },
+            include: userWithRoleInclude,
+          });
+
+          if (!activatedUser) {
             throw new NotFoundError("User not found");
           }
 
-          if (existingUser.isActive && existingUser.deactivatedAt === null) {
-            throw new ConflictError("User account is already active");
-          }
-
-          throw new InternalError("User activation state could not be updated");
-        }
-
-        const activatedUser = await tx.user.findUnique({
-          where: { id },
-          include: userWithRoleInclude,
-        });
-
-        if (!activatedUser) {
-          throw new NotFoundError("User not found");
-        }
-
-        return activatedUser;
-      });
+          return activatedUser;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error) {
       if (error instanceof ConflictError || error instanceof NotFoundError) {
         throw error;

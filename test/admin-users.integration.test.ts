@@ -311,15 +311,14 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.body.error.code).toBe("CONFLICT");
   });
 
-  it("should return 401 for activation when an Admin already exists and no auth token is provided", async () => {
-    hasAnyAdminUsersSpy.mockResolvedValue(true);
-
+  it("should return 401 for activation when no authorization header is provided", async () => {
     const app = createApp();
     const response = await request(app).patch("/api/v1/admin/users/2/activate");
 
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(activateUserSpy).not.toHaveBeenCalled();
+    expect(hasAnyAdminUsersSpy).not.toHaveBeenCalled();
   });
 
   it("should return 401 for activation when the bearer token is malformed", async () => {
