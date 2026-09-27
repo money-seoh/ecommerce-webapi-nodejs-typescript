@@ -2,6 +2,15 @@ import request from "supertest";
 import { createApp } from "../src/app";
 import { userController } from "../src/config/container";
 import { UserService } from "../src/services/user.service";
+import { createAccessToken } from "../src/utils/token";
+
+function adminAuthorizationHeader(): { authorization: string } {
+  return { authorization: ["Bearer", createAccessToken(1, "Admin")].join(" ") };
+}
+
+function customerAuthorizationHeader(): { authorization: string } {
+  return { authorization: ["Bearer", createAccessToken(2, "Customer")].join(" ") };
+}
 
 describe("POST /api/v1/admin/users", () => {
   let createAdminUserSpy: jest.SpyInstance;
@@ -189,8 +198,7 @@ describe("POST /api/v1/admin/users", () => {
     const app = createApp();
     const response = await request(app)
       .post("/api/v1/admin/users")
-      .set("authorization", "******")
-      .set("x-user-role", "Customer")
+      .set(customerAuthorizationHeader())
       .send({
         firstName: "Jane",
         lastName: "Doe",
@@ -223,8 +231,7 @@ describe("POST /api/v1/admin/users", () => {
     const app = createApp();
     const response = await request(app)
       .post("/api/v1/admin/users")
-      .set("authorization", "******")
-      .set("x-user-role", "Admin")
+      .set(adminAuthorizationHeader())
       .send({
         firstName: "Jane",
         lastName: "Doe",
@@ -256,8 +263,7 @@ describe("POST /api/v1/admin/users", () => {
     const app = createApp();
     const response = await request(app)
       .patch("/api/v1/admin/users/2/activate")
-      .set("authorization", "******")
-      .set("x-user-role", "Admin");
+      .set(adminAuthorizationHeader());
 
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({ id: 2, isActive: true, deactivatedAt: null });
@@ -270,8 +276,7 @@ describe("POST /api/v1/admin/users", () => {
     const app = createApp();
     const response = await request(app)
       .patch("/api/v1/admin/users/not-a-number/activate")
-      .set("authorization", "******")
-      .set("x-user-role", "Admin");
+      .set(adminAuthorizationHeader());
 
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("VALIDATION_ERROR");
@@ -286,8 +291,7 @@ describe("POST /api/v1/admin/users", () => {
     const app = createApp();
     const response = await request(app)
       .patch("/api/v1/admin/users/999/activate")
-      .set("authorization", "******")
-      .set("x-user-role", "Admin");
+      .set(adminAuthorizationHeader());
 
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe("NOT_FOUND");
@@ -301,8 +305,7 @@ describe("POST /api/v1/admin/users", () => {
     const app = createApp();
     const response = await request(app)
       .patch("/api/v1/admin/users/2/activate")
-      .set("authorization", "******")
-      .set("x-user-role", "Admin");
+      .set(adminAuthorizationHeader());
 
     expect(response.status).toBe(409);
     expect(response.body.error.code).toBe("CONFLICT");
@@ -325,8 +328,7 @@ describe("POST /api/v1/admin/users", () => {
     const app = createApp();
     const response = await request(app)
       .patch("/api/v1/admin/users/2/activate")
-      .set("authorization", "******")
-      .set("x-user-role", "Customer");
+      .set(customerAuthorizationHeader());
 
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe("FORBIDDEN");
@@ -352,14 +354,12 @@ describe("POST /api/v1/admin/users", () => {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       await request(app)
         .patch("/api/v1/admin/users/2/activate")
-        .set("authorization", "******")
-        .set("x-user-role", "Admin");
+        .set(adminAuthorizationHeader());
     }
 
     const response = await request(app)
       .patch("/api/v1/admin/users/2/activate")
-      .set("authorization", "******")
-      .set("x-user-role", "Admin");
+      .set(adminAuthorizationHeader());
 
     expect(response.status).toBe(429);
     expect(response.body.error.code).toBe("TOO_MANY_REQUESTS");

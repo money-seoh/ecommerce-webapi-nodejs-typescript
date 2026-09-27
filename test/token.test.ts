@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { createAccessToken } from "../src/utils/token";
+import { createAccessToken, verifyAccessToken } from "../src/utils/token";
 
 describe("token utilities", () => {
   describe("createAccessToken", () => {
@@ -11,6 +11,17 @@ describe("token utilities", () => {
       expect(decoded.sub).toBe("42");
       expect(decoded.role).toBe("Customer");
       expect(decoded.exp).toBeDefined();
+    });
+  });
+
+  describe("verifyAccessToken", () => {
+    it("should verify a JWT and return its subject and role claims", () => {
+      const token = createAccessToken(7, "Admin");
+
+      expect(verifyAccessToken(token)).toMatchObject({
+        sub: "7",
+        role: "Admin",
+      });
     });
   });
 });

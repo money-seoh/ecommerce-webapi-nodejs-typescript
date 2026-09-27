@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { userController, userService } from "../config/container";
-import { requireAdminAuthAfterBootstrap } from "../middlewares/bootstrap-admin-auth.middleware";
+import { requireAdminAuth, requireAdminAuthAfterBootstrap } from "../middlewares/bootstrap-admin-auth.middleware";
 import { TooManyRequestsError } from "../utils/errors";
 
 const router: Router = Router();
@@ -36,8 +36,11 @@ router.post(
  * /api/v1/admin/users/{userId}/activate:
  *   patch:
  *     summary: Activate an inactive user account
+ *     description: Requires a bearer token for an authenticated Admin account.
  *     tags:
  *       - Admin Users
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -64,7 +67,7 @@ router.post(
 router.patch(
   "/:userId/activate",
   adminUserActivationRateLimit,
-  requireAdminAuthAfterBootstrap(userService),
+  requireAdminAuth,
   userController.activateUserByAdmin,
 );
 

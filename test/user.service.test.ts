@@ -300,14 +300,7 @@ describe("UserService", () => {
 
   describe("activateUser", () => {
     it("should activate an inactive user and clear deactivatedAt", async () => {
-      userRepository.findById.mockResolvedValue(
-        buildUserWithRole({
-          id: 3,
-          isActive: false,
-          deactivatedAt: new Date("2024-01-02T00:00:00.000Z"),
-        }),
-      );
-      userRepository.updateActivationStatus.mockResolvedValue(
+      userRepository.activateById.mockResolvedValue(
         buildUserWithRole({
           id: 3,
           isActive: true,
@@ -321,38 +314,25 @@ describe("UserService", () => {
         deactivatedAt: null,
       });
 
-      expect(userRepository.updateActivationStatus).toHaveBeenCalledWith(3, true, null);
+      expect(userRepository.activateById).toHaveBeenCalledWith(3);
     });
 
     it("should return NotFoundError when the user does not exist", async () => {
-      userRepository.findById.mockResolvedValue(null);
+      userRepository.activateById.mockRejectedValue(new NotFoundError("User not found"));
 
       await expect(service.activateUser(99)).rejects.toBeInstanceOf(NotFoundError);
-      expect(userRepository.updateActivationStatus).not.toHaveBeenCalled();
+      expect(userRepository.activateById).toHaveBeenCalledWith(99);
     });
 
     it("should return ConflictError when the user is already active", async () => {
-      userRepository.findById.mockResolvedValue(
-        buildUserWithRole({
-          id: 4,
-          isActive: true,
-          deactivatedAt: null,
-        }),
-      );
+      userRepository.activateById.mockRejectedValue(new ConflictError("User account is already active"));
 
       await expect(service.activateUser(4)).rejects.toBeInstanceOf(ConflictError);
-      expect(userRepository.updateActivationStatus).not.toHaveBeenCalled();
+      expect(userRepository.activateById).toHaveBeenCalledWith(4);
     });
 
     it("should allow the activated customer to log in afterwards", async () => {
-      userRepository.findById.mockResolvedValue(
-        buildUserWithRole({
-          id: 5,
-          isActive: false,
-          deactivatedAt: new Date("2024-01-02T00:00:00.000Z"),
-        }),
-      );
-      userRepository.updateActivationStatus.mockResolvedValue(
+      userRepository.activateById.mockResolvedValue(
         buildUserWithRole({
           id: 5,
           isActive: true,

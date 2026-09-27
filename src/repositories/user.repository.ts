@@ -129,25 +129,60 @@ export class UserRepository {
     }
   }
 
-  async updateActivationStatus(id: number, isActive: boolean, deactivatedAt: Date | null): Promise<UserWithRole> {
+  async activateById(id: number): Promise<UserWithRole> {
     try {
-      return await this.prisma.user.update({
-        where: { id },
-        data: {
-          isActive,
-          deactivatedAt,
-        },
-        include: userWithRoleInclude,
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === "P2025") {
+      return await this.prisma.$transaction(async (tx) => {
+        const activationResult = await tx.user.updateMany({
+          where: {
+            id,
+            OR: [
+              { isActive: false },
+              { deactivatedAt: { not: null } },
+            ],
+          },
+          data: {
+            isActive: true,
+            deactivatedAt: null,
+          },
+        });
+
+        if (activationResult.count === 0) {
+          const existingUser = await tx.user.findUnique({
+            where: { id },
+            select: {
+              id: true,
+              isActive: true,
+              deactivatedAt: true,
+            },
+          });
+
+          if (!existingUser) {
+            throw new NotFoundError("User not found");
+          }
+
+          throw new ConflictError("User account is already active");
+        }
+
+        const activatedUser = await tx.user.findUnique({
+          where: { id },
+          include: userWithRoleInclude,
+        });
+
+        if (!activatedUser) {
           throw new NotFoundError("User not found");
         }
-        throw new InternalError("Database error in updateActivationStatus");
+
+        return activatedUser;
+      });
+    } catch (error) {
+      if (error instanceof ConflictError || error instanceof NotFoundError) {
+        throw error;
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new InternalError("Database error in activateById");
       }
       if (error instanceof Prisma.PrismaClientValidationError) {
-        throw new InternalError("Invalid query for updateActivationStatus");
+        throw new InternalError("Invalid query for activateById");
       }
       throw error;
     }

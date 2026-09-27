@@ -2,9 +2,41 @@ import { NextFunction, Request, Response } from "express";
 import { ROLE_NAMES } from "../dtos/user.dto";
 import { UserService } from "../services/user.service";
 import { ForbiddenError, UnauthorizedError } from "../utils/errors";
+import { verifyAccessToken } from "../utils/token";
 
-function hasAuthenticatedContext(authorizationHeader: string | undefined): boolean {
-  return Boolean(authorizationHeader?.trim());
+function extractBearerToken(authorizationHeader: string | undefined): string {
+  const [scheme, token] = authorizationHeader?.trim().split(/\s+/, 2) ?? [];
+  if (scheme !== "Bearer" || !token) {
+    throw new UnauthorizedError("Authentication required");
+  }
+
+  return token;
+}
+
+function assertAdminAuth(req: Request): void {
+  const token = extractBearerToken(req.header("authorization"));
+
+  try {
+    const claims = verifyAccessToken(token);
+    if (claims.role !== ROLE_NAMES.ADMIN) {
+      throw new ForbiddenError("Admin role is required");
+    }
+  } catch (error) {
+    if (error instanceof ForbiddenError) {
+      throw error;
+    }
+
+    throw new UnauthorizedError("Authentication required");
+  }
+}
+
+export function requireAdminAuth(req: Request, _res: Response, next: NextFunction): void {
+  try {
+    assertAdminAuth(req);
+    next();
+  } catch (error) {
+    next(error);
+  }
 }
 
 export function requireAdminAuthAfterBootstrap(userService: UserService) {
@@ -16,15 +48,7 @@ export function requireAdminAuthAfterBootstrap(userService: UserService) {
         return;
       }
 
-      if (!hasAuthenticatedContext(req.header("authorization"))) {
-        throw new UnauthorizedError("Authentication required");
-      }
-
-      const callerRole = req.header("x-user-role");
-      if (callerRole !== ROLE_NAMES.ADMIN) {
-        throw new ForbiddenError("Admin role is required");
-      }
-
+      assertAdminAuth(req);
       next();
     } catch (error) {
       next(error);

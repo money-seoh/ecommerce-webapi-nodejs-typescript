@@ -1,7 +1,7 @@
 import { RoleRepository } from "../repositories/role.repository";
 import { UserRepository, UserWithRole } from "../repositories/user.repository";
 import { comparePassword, hashPassword } from "../utils/password";
-import { ConflictError, ForbiddenError, InternalError, NotFoundError, UnauthorizedError } from "../utils/errors";
+import { ConflictError, ForbiddenError, InternalError, UnauthorizedError } from "../utils/errors";
 import {
   AuthTokenResponseDto,
   CustomerLoginDto,
@@ -105,17 +105,8 @@ export class UserService {
   }
 
   async activateUser(userId: number): Promise<UserResponseDto> {
-    const user = await this.userRepository.findById(userId);
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
-
-    if (user.isActive && user.deactivatedAt === null) {
-      throw new ConflictError("User account is already active");
-    }
-
-    const updatedUser = await this.userRepository.updateActivationStatus(userId, true, null);
-    return this.toResponseDto(updatedUser);
+    const user = await this.userRepository.activateById(userId);
+    return this.toResponseDto(user);
   }
 
   async hasAnyAdminUsers(): Promise<boolean> {
