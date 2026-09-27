@@ -10,6 +10,14 @@ export interface AuthenticatedAccessTokenClaims extends AccessTokenClaims, JwtPa
   sub: string;
 }
 
+export class InvalidAccessTokenError extends Error {
+  constructor(message = "Invalid access token") {
+    super(message);
+    this.name = "InvalidAccessTokenError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 export function createAccessToken(userId: number, role: RoleName): string {
   const payload: AccessTokenClaims = { role };
 
@@ -21,19 +29,27 @@ export function createAccessToken(userId: number, role: RoleName): string {
 }
 
 export function verifyAccessToken(token: string): AuthenticatedAccessTokenClaims {
-  const decoded = jwt.verify(token, env.jwtSecret, {
-    algorithms: ["HS256"],
-  });
+  try {
+    const decoded = jwt.verify(token, env.jwtSecret, {
+      algorithms: ["HS256"],
+    });
 
-  if (
-    typeof decoded === "string"
-    || typeof decoded.sub !== "string"
-    || !isRoleName(decoded.role)
-  ) {
-    throw new Error("Invalid token claims");
+    if (
+      typeof decoded === "string"
+      || typeof decoded.sub !== "string"
+      || !isRoleName(decoded.role)
+    ) {
+      throw new InvalidAccessTokenError("Invalid token claims");
+    }
+
+    return decoded as AuthenticatedAccessTokenClaims;
+  } catch (error) {
+    if (error instanceof InvalidAccessTokenError || error instanceof jwt.JsonWebTokenError) {
+      throw new InvalidAccessTokenError();
+    }
+
+    throw error;
   }
-
-  return decoded as AuthenticatedAccessTokenClaims;
 }
 
 function isRoleName(role: unknown): role is RoleName {

@@ -322,6 +322,19 @@ describe("POST /api/v1/admin/users", () => {
     expect(activateUserSpy).not.toHaveBeenCalled();
   });
 
+  it("should return 401 for activation when the bearer token is malformed", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/activate")
+      .set("authorization", "******");
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(activateUserSpy).not.toHaveBeenCalled();
+  });
+
   it("should return 403 for activation when an Admin exists and caller is not Admin", async () => {
     hasAnyAdminUsersSpy.mockResolvedValue(true);
 

@@ -160,7 +160,11 @@ export class UserRepository {
             throw new NotFoundError("User not found");
           }
 
-          throw new ConflictError("User account is already active");
+          if (existingUser.isActive && existingUser.deactivatedAt === null) {
+            throw new ConflictError("User account is already active");
+          }
+
+          throw new InternalError("User activation state could not be updated");
         }
 
         const activatedUser = await tx.user.findUnique({

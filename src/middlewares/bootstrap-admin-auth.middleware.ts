@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { ROLE_NAMES } from "../dtos/user.dto";
 import { UserService } from "../services/user.service";
 import { ForbiddenError, UnauthorizedError } from "../utils/errors";
-import { verifyAccessToken } from "../utils/token";
+import { InvalidAccessTokenError, verifyAccessToken } from "../utils/token";
 
 function extractBearerToken(authorizationHeader: string | undefined): string {
   const [scheme, token] = authorizationHeader?.trim().split(/\s+/, 2) ?? [];
@@ -25,8 +25,10 @@ function assertAdminAuth(req: Request): void {
     if (error instanceof ForbiddenError) {
       throw error;
     }
-
-    throw new UnauthorizedError("Authentication required");
+    if (error instanceof InvalidAccessTokenError) {
+      throw new UnauthorizedError("Authentication required");
+    }
+    throw error;
   }
 }
 

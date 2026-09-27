@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { createAccessToken, verifyAccessToken } from "../src/utils/token";
+import { createAccessToken, InvalidAccessTokenError, verifyAccessToken } from "../src/utils/token";
 
 describe("token utilities", () => {
   describe("createAccessToken", () => {
@@ -22,6 +22,20 @@ describe("token utilities", () => {
         sub: "7",
         role: "Admin",
       });
+    });
+
+    it("should throw InvalidAccessTokenError when the token is malformed", () => {
+      expect(() => verifyAccessToken("not-a-jwt")).toThrow(InvalidAccessTokenError);
+    });
+
+    it("should throw InvalidAccessTokenError when the token claims are invalid", () => {
+      const token = jwt.sign({ role: "Guest" }, process.env.JWT_SECRET ?? "test-jwt-secret", {
+        algorithm: "HS256",
+        subject: "9",
+        expiresIn: "1h",
+      });
+
+      expect(() => verifyAccessToken(token)).toThrow(InvalidAccessTokenError);
     });
   });
 });
