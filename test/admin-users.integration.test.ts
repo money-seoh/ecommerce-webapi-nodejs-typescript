@@ -343,6 +343,36 @@ describe("POST /api/v1/admin/users", () => {
     expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
   });
 
+  it("should return 401 for activation when the admin token subject is inactive", async () => {
+    const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
+    assertActiveAdminUserSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/activate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(activateUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("should return 401 for activation when the admin token subject does not exist", async () => {
+    const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
+    assertActiveAdminUserSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/activate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(activateUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+  });
+
   it("should return 403 for activation when an Admin exists and caller is not Admin", async () => {
     hasAnyAdminUsersSpy.mockResolvedValue(true);
 
