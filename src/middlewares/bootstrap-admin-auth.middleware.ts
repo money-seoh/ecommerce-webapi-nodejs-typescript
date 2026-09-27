@@ -13,32 +13,41 @@ function extractBearerToken(authorizationHeader: string | undefined): string {
   return token;
 }
 
-function assertAdminAuth(req: Request): void {
+async function assertAdminAuth(userService: UserService, req: Request): Promise<void> {
   const token = extractBearerToken(req.header("authorization"));
 
-  try {
-    const claims = verifyAccessToken(token);
-    if (claims.role !== ROLE_NAMES.ADMIN) {
-      throw new ForbiddenError("Admin role is required");
-    }
-  } catch (error) {
-    if (error instanceof ForbiddenError) {
+  const claims = (() => {
+    try {
+      return verifyAccessToken(token);
+    } catch (error) {
+      if (error instanceof InvalidAccessTokenError) {
+        throw new UnauthorizedError("Authentication required");
+      }
       throw error;
     }
-    if (error instanceof InvalidAccessTokenError) {
-      throw new UnauthorizedError("Authentication required");
-    }
-    throw error;
+  })();
+
+  if (claims.role !== ROLE_NAMES.ADMIN) {
+    throw new ForbiddenError("Admin role is required");
   }
+
+  const userId = Number(claims.sub);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new UnauthorizedError("Authentication required");
+  }
+
+  await userService.assertActiveAdminUser(userId);
 }
 
-export function requireAdminAuth(req: Request, _res: Response, next: NextFunction): void {
-  try {
-    assertAdminAuth(req);
-    next();
-  } catch (error) {
-    next(error);
-  }
+export function requireAdminAuth(userService: UserService) {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await assertAdminAuth(userService, req);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export function requireAdminAuthAfterBootstrap(userService: UserService) {
@@ -50,7 +59,7 @@ export function requireAdminAuthAfterBootstrap(userService: UserService) {
         return;
       }
 
-      assertAdminAuth(req);
+      await assertAdminAuth(userService, req);
       next();
     } catch (error) {
       next(error);

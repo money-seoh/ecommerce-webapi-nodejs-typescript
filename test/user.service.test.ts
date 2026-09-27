@@ -363,6 +363,53 @@ describe("UserService", () => {
     });
   });
 
+  describe("assertActiveAdminUser", () => {
+    it("should allow an active admin user", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({
+          id: 7,
+          isActive: true,
+          deactivatedAt: null,
+          userRoles: [{ role: { id: 1, name: "Admin" } }],
+        }),
+      );
+
+      await expect(service.assertActiveAdminUser(7)).resolves.toBeUndefined();
+      expect(userRepository.findById).toHaveBeenCalledWith(7);
+    });
+
+    it("should reject when the admin user does not exist", async () => {
+      userRepository.findById.mockResolvedValue(null);
+
+      await expect(service.assertActiveAdminUser(7)).rejects.toBeInstanceOf(UnauthorizedError);
+    });
+
+    it("should reject when the admin user is inactive", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({
+          id: 7,
+          isActive: false,
+          userRoles: [{ role: { id: 1, name: "Admin" } }],
+        }),
+      );
+
+      await expect(service.assertActiveAdminUser(7)).rejects.toBeInstanceOf(UnauthorizedError);
+    });
+
+    it("should reject when the user does not have the Admin role", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({
+          id: 7,
+          isActive: true,
+          deactivatedAt: null,
+          userRoles: [{ role: { id: 2, name: "Customer" } }],
+        }),
+      );
+
+      await expect(service.assertActiveAdminUser(7)).rejects.toBeInstanceOf(ForbiddenError);
+    });
+  });
+
   describe("toResponseDto edge cases (via createAdminUser)", () => {
     it("should throw InternalError when the created user has no roles", async () => {
       userRepository.findByEmail.mockResolvedValue(null);

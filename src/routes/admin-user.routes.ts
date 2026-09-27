@@ -67,7 +67,7 @@ router.post(
 router.patch(
   "/:userId/activate",
   adminUserActivationRateLimit,
-  requireAdminAuth,
+  requireAdminAuth(userService),
   userController.activateUserByAdmin,
 );
 
