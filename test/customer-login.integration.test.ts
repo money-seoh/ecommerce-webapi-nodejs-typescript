@@ -92,6 +92,7 @@ describe("POST /api/v1/customers/login", () => {
 
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe("FORBIDDEN");
+    expect(response.body.error.message).toBe("Customer account is not active");
   });
 
   it("should return 429 when the rate limit is exceeded", async () => {

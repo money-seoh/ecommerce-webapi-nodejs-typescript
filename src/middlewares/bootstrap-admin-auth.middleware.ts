@@ -13,7 +13,7 @@ function extractBearerToken(authorizationHeader: string | undefined): string {
   return bearerMatch[1];
 }
 
-async function assertAdminAuth(userService: UserService, req: Request): Promise<void> {
+async function assertAdminAuth(userService: UserService, req: Request): Promise<number> {
   const token = extractBearerToken(req.header("authorization"));
 
   const claims = (() => {
@@ -37,12 +37,14 @@ async function assertAdminAuth(userService: UserService, req: Request): Promise<
   }
 
   await userService.assertActiveAdminUser(userId);
+  return userId;
 }
 
 export function requireAdminAuth(userService: UserService) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      await assertAdminAuth(userService, req);
+      const authenticatedUserId = await assertAdminAuth(userService, req);
+      _res.locals.authenticatedUserId = authenticatedUserId;
       next();
     } catch (error) {
       next(error);
@@ -59,7 +61,8 @@ export function requireAdminAuthAfterBootstrap(userService: UserService) {
         return;
       }
 
-      await assertAdminAuth(userService, req);
+      const authenticatedUserId = await assertAdminAuth(userService, req);
+      _res.locals.authenticatedUserId = authenticatedUserId;
       next();
     } catch (error) {
       next(error);

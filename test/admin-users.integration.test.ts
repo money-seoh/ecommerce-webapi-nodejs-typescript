@@ -15,12 +15,14 @@ function customerAuthorizationHeader(): { authorization: string } {
 describe("POST /api/v1/admin/users", () => {
   let createAdminUserSpy: jest.SpyInstance;
   let activateUserSpy: jest.SpyInstance;
+  let deactivateUserSpy: jest.SpyInstance;
   let assertActiveAdminUserSpy: jest.SpyInstance;
   let hasAnyAdminUsersSpy: jest.SpyInstance;
 
   beforeEach(() => {
     createAdminUserSpy = jest.spyOn(UserService.prototype, "createAdminUser");
     activateUserSpy = jest.spyOn(UserService.prototype, "activateUser");
+    deactivateUserSpy = jest.spyOn(UserService.prototype, "deactivateUser");
     assertActiveAdminUserSpy = jest
       .spyOn(UserService.prototype, "assertActiveAdminUser")
       .mockResolvedValue();
@@ -32,6 +34,7 @@ describe("POST /api/v1/admin/users", () => {
   afterEach(() => {
     createAdminUserSpy.mockRestore();
     activateUserSpy.mockRestore();
+    deactivateUserSpy.mockRestore();
     assertActiveAdminUserSpy.mockRestore();
     hasAnyAdminUsersSpy.mockRestore();
   });
@@ -440,6 +443,176 @@ describe("POST /api/v1/admin/users", () => {
 
     const response = await request(app)
       .patch("/api/v1/admin/users/2/activate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(429);
+    expect(response.body.error.code).toBe("TOO_MANY_REQUESTS");
+  });
+
+  it("should deactivate another user and return 200 when caller is Admin", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+    deactivateUserSpy.mockResolvedValue({
+      id: 2,
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      role: "Customer",
+      isActive: false,
+      deactivatedAt: new Date("2024-01-03T00:00:00.000Z"),
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-03T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/deactivate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ id: 2, isActive: false });
+    expect(deactivateUserSpy).toHaveBeenCalledWith(1, 2);
+    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("should return 400 when deactivation userId path param is invalid", async () => {
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/not-a-number/deactivate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(deactivateUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("should return 404 when deactivation target does not exist", async () => {
+    const { NotFoundError } = jest.requireActual("../src/utils/errors");
+    deactivateUserSpy.mockRejectedValue(new NotFoundError("User not found"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/999/deactivate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("should return 409 when deactivation target is already inactive", async () => {
+    const { ConflictError } = jest.requireActual("../src/utils/errors");
+    deactivateUserSpy.mockRejectedValue(new ConflictError("User account is already inactive"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/deactivate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe("CONFLICT");
+  });
+
+  it("should return 409 when deactivation would remove the last active Admin", async () => {
+    const { ConflictError } = jest.requireActual("../src/utils/errors");
+    deactivateUserSpy.mockRejectedValue(new ConflictError("At least one active Admin user must remain"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/deactivate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe("CONFLICT");
+  });
+
+  it("should return 403 when an Admin attempts to deactivate themselves", async () => {
+    const { ForbiddenError } = jest.requireActual("../src/utils/errors");
+    deactivateUserSpy.mockRejectedValue(new ForbiddenError("Admins cannot deactivate their own accounts"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/1/deactivate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("FORBIDDEN");
+  });
+
+  it("should return 401 for deactivation when no authorization header is provided", async () => {
+    const app = createApp();
+    const response = await request(app).patch("/api/v1/admin/users/2/deactivate");
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(deactivateUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+    expect(hasAnyAdminUsersSpy).not.toHaveBeenCalled();
+  });
+
+  it("should return 401 for deactivation when the bearer token has extra fields", async () => {
+    const adminToken = createAccessToken(1, "Admin");
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/deactivate")
+      .set("authorization", "Bearer " + adminToken + " extra");
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(deactivateUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("should return 401 for deactivation when the admin token subject is inactive", async () => {
+    const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
+    assertActiveAdminUserSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/deactivate")
+      .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(deactivateUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("should return 403 for deactivation when caller is not Admin", async () => {
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/deactivate")
+      .set(customerAuthorizationHeader());
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("FORBIDDEN");
+    expect(deactivateUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("should return 429 when the deactivation rate limit is exceeded", async () => {
+    deactivateUserSpy.mockResolvedValue({
+      id: 2,
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      role: "Customer",
+      isActive: false,
+      deactivatedAt: new Date("2024-01-03T00:00:00.000Z"),
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-03T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await request(app)
+        .patch("/api/v1/admin/users/2/deactivate")
+        .set(adminAuthorizationHeader());
+    }
+
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/deactivate")
       .set(adminAuthorizationHeader());
 
     expect(response.status).toBe(429);
