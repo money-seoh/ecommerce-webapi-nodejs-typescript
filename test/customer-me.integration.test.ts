@@ -80,6 +80,18 @@ describe("GET /api/v1/customers/me", () => {
     expect(getCurrentUserSpy).not.toHaveBeenCalled();
   });
 
+  it("should return 401 when the bearer token is not a valid JWT", async () => {
+    const app = createApp();
+    const response = await request(app)
+      .get("/api/v1/customers/me")
+      .set("authorization", "******");
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("UNAUTHORIZED");
+    expect(assertActiveUserWithRoleSpy).not.toHaveBeenCalled();
+    expect(getCurrentUserSpy).not.toHaveBeenCalled();
+  });
+
   it("should return 401 when the customer token subject is inactive", async () => {
     const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
     assertActiveUserWithRoleSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));

@@ -66,6 +66,8 @@ router.post("/login", customerLoginRateLimit, userController.loginCustomer);
  *         description: Authentication required
  *       403:
  *         description: Customer role is required
+ *       429:
+ *         description: Too many customer profile requests
  */
 router.get(
   "/me",
