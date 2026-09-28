@@ -109,6 +109,15 @@ export class UserService {
     return this.toResponseDto(user);
   }
 
+  async deactivateUser(actorUserId: number, targetUserId: number): Promise<UserResponseDto> {
+    if (actorUserId === targetUserId) {
+      throw new ForbiddenError("Admins cannot deactivate their own accounts");
+    }
+
+    const user = await this.userRepository.deactivateById(targetUserId);
+    return this.toResponseDto(user);
+  }
+
   async assertActiveAdminUser(userId: number): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user || !user.isActive || user.deactivatedAt !== null) {

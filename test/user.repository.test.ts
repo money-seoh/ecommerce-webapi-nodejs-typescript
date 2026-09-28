@@ -209,6 +209,8 @@ describe("UserRepository", () => {
           where: expect.objectContaining({ deactivatedAt: null }),
         }),
       );
+      const queryArgs = (prisma.user.count as jest.Mock).mock.calls[0][0];
+      expect(queryArgs.where).not.toHaveProperty("isActive");
     });
 
     it("should return false when no Admin exists", async () => {
@@ -307,6 +309,120 @@ describe("UserRepository", () => {
       const repo = new UserRepository(prisma as never);
 
       await expect(repo.activateById(7)).rejects.toBeInstanceOf(InternalError);
+    });
+  });
+
+  describe("deactivateById", () => {
+    it("should update deactivation state atomically by setting isActive to false", async () => {
+      const user = buildUserWithRole({
+        id: 7,
+        isActive: false,
+        deactivatedAt: null,
+        userRoles: [{ role: { id: 2, name: "Customer" } }],
+      });
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      (prisma.user.findUnique as jest.Mock)
+        .mockResolvedValueOnce(buildUserWithRole({
+          id: 7,
+          isActive: true,
+          deactivatedAt: null,
+          userRoles: [{ role: { id: 2, name: "Customer" } }],
+        }))
+        .mockResolvedValueOnce(user);
+      (prisma.user.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.deactivateById(7)).resolves.toEqual(user);
+      expect(prisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+      expect(prisma.user.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 7,
+          isActive: true,
+          deactivatedAt: null,
+        },
+        data: {
+          isActive: false,
+        },
+      });
+      expect(prisma.user.count).not.toHaveBeenCalled();
+      expect(prisma.user.findUnique).toHaveBeenNthCalledWith(2, {
+        where: { id: 7 },
+        include: expect.any(Object),
+      });
+    });
+
+    it("should prevent deactivation of the last active Admin", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(buildUserWithRole({
+        id: 7,
+        isActive: true,
+        deactivatedAt: null,
+        userRoles: [{ role: { id: 1, name: "Admin" } }],
+      }));
+      (prisma.user.count as jest.Mock).mockResolvedValue(1);
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.deactivateById(7)).rejects.toBeInstanceOf(ConflictError);
+      expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundError when the user does not exist", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.deactivateById(7)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("should throw ConflictError when the user is already inactive", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(buildUserWithRole({
+        id: 7,
+        isActive: false,
+        deactivatedAt: new Date("2024-01-03T00:00:00.000Z"),
+      }));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.deactivateById(7)).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("should throw NotFoundError on P2025 during deactivation transaction", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockRejectedValue(makeKnownRequestError("P2025"));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.deactivateById(7)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("should throw InternalError on PrismaClientKnownRequestError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockRejectedValue(makeKnownRequestError("P2001"));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.deactivateById(7)).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should throw InternalError on PrismaClientValidationError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockRejectedValue(makeValidationError());
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.deactivateById(7)).rejects.toBeInstanceOf(InternalError);
     });
   });
 });

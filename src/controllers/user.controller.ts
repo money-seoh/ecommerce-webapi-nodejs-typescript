@@ -7,7 +7,7 @@ import {
   registerCustomerSchema,
   userIdParamSchema,
 } from "../dtos/user.dto";
-import { ValidationError } from "../utils/errors";
+import { UnauthorizedError, ValidationError } from "../utils/errors";
 
 function toValidationError(error: ZodError): ValidationError {
   const details = error.issues.map((issue) => ({ path: issue.path.filter((p): p is string | number => typeof p !== "symbol"), message: issue.message }));
@@ -67,6 +67,25 @@ export class UserController {
       }
 
       const user = await this.userService.activateUser(parseResult.data.userId);
+      res.status(200).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deactivateUserByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parseResult = userIdParamSchema.safeParse(req.params);
+      if (!parseResult.success) {
+        throw toValidationError(parseResult.error);
+      }
+
+      const actorUserId = Number(res.locals.authenticatedUserId);
+      if (!Number.isInteger(actorUserId) || actorUserId <= 0) {
+        throw new UnauthorizedError("Authentication required");
+      }
+
+      const user = await this.userService.deactivateUser(actorUserId, parseResult.data.userId);
       res.status(200).json({ data: user });
     } catch (error) {
       next(error);

@@ -363,6 +363,78 @@ describe("UserService", () => {
     });
   });
 
+  describe("deactivateUser", () => {
+    it("should deactivate another active user", async () => {
+      userRepository.deactivateById.mockResolvedValue(
+        buildUserWithRole({
+          id: 8,
+          isActive: false,
+          deactivatedAt: new Date("2024-01-03T00:00:00.000Z"),
+        }),
+      );
+
+      await expect(service.deactivateUser(7, 8)).resolves.toMatchObject({
+        id: 8,
+        isActive: false,
+      });
+
+      expect(userRepository.deactivateById).toHaveBeenCalledWith(8);
+    });
+
+    it("should reject self-deactivation", async () => {
+      await expect(service.deactivateUser(7, 7)).rejects.toBeInstanceOf(ForbiddenError);
+      expect(userRepository.deactivateById).not.toHaveBeenCalled();
+    });
+
+    it("should return NotFoundError when the user does not exist", async () => {
+      userRepository.deactivateById.mockRejectedValue(new NotFoundError("User not found"));
+
+      await expect(service.deactivateUser(7, 99)).rejects.toBeInstanceOf(NotFoundError);
+      expect(userRepository.deactivateById).toHaveBeenCalledWith(99);
+    });
+
+    it("should return ConflictError when the user is already inactive", async () => {
+      userRepository.deactivateById.mockRejectedValue(new ConflictError("User account is already inactive"));
+
+      await expect(service.deactivateUser(7, 8)).rejects.toBeInstanceOf(ConflictError);
+      expect(userRepository.deactivateById).toHaveBeenCalledWith(8);
+    });
+
+    it("should return ConflictError when deactivation would remove the last active Admin", async () => {
+      userRepository.deactivateById.mockRejectedValue(new ConflictError("At least one active Admin user must remain"));
+
+      await expect(service.deactivateUser(7, 8)).rejects.toBeInstanceOf(ConflictError);
+      expect(userRepository.deactivateById).toHaveBeenCalledWith(8);
+    });
+
+    it("should prevent the deactivated customer from logging in afterwards", async () => {
+      userRepository.deactivateById.mockResolvedValue(
+        buildUserWithRole({
+          id: 5,
+          isActive: false,
+          deactivatedAt: new Date("2024-01-03T00:00:00.000Z"),
+        }),
+      );
+      jest.mocked(comparePassword).mockResolvedValue(true);
+
+      await service.deactivateUser(7, 5);
+      userRepository.findByEmail.mockResolvedValue(
+        buildUserWithRole({
+          id: 5,
+          isActive: false,
+          deactivatedAt: new Date("2024-01-03T00:00:00.000Z"),
+        }),
+      );
+
+      await expect(
+        service.loginCustomer({
+          email: "jane.doe@example.com",
+          password: "Password1",
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+  });
+
   describe("assertActiveAdminUser", () => {
     it("should allow an active admin user", async () => {
       userRepository.findById.mockResolvedValue(

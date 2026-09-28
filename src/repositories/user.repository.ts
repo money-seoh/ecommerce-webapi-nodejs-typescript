@@ -33,6 +33,29 @@ const userWithRoleInclude = {
 export class UserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  private readonly anyNonDeactivatedAdminWhere = {
+    deactivatedAt: null,
+    userRoles: {
+      some: {
+        role: {
+          name: "Admin",
+        },
+      },
+    },
+  } satisfies Prisma.UserWhereInput;
+
+  private readonly activeAdminWhere = {
+    isActive: true,
+    deactivatedAt: null,
+    userRoles: {
+      some: {
+        role: {
+          name: "Admin",
+        },
+      },
+    },
+  } satisfies Prisma.UserWhereInput;
+
   async findByEmail(email: string): Promise<UserWithRole | null> {
     try {
       return await this.prisma.user.findUnique({
@@ -106,16 +129,7 @@ export class UserRepository {
   async hasAnyAdminUser(): Promise<boolean> {
     try {
       const adminCount = await this.prisma.user.count({
-        where: {
-          userRoles: {
-            some: {
-              role: {
-                name: "Admin",
-              },
-            },
-          },
-          deactivatedAt: null,
-        },
+        where: this.anyNonDeactivatedAdminWhere,
       });
       return adminCount > 0;
     } catch (error) {
@@ -193,6 +207,79 @@ export class UserRepository {
       }
       if (error instanceof Prisma.PrismaClientValidationError) {
         throw new InternalError("Invalid query for activateById");
+      }
+      throw error;
+    }
+  }
+
+  async deactivateById(id: number): Promise<UserWithRole> {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const existingUser = await tx.user.findUnique({
+            where: { id },
+            include: userWithRoleInclude,
+          });
+
+          if (!existingUser) {
+            throw new NotFoundError("User not found");
+          }
+
+          if (!existingUser.isActive || existingUser.deactivatedAt !== null) {
+            throw new ConflictError("User account is already inactive");
+          }
+
+          const isAdminUser = existingUser.userRoles.some(({ role }) => role.name === "Admin");
+          if (isAdminUser) {
+            const activeAdminCount = await tx.user.count({
+              where: this.activeAdminWhere,
+            });
+
+            if (activeAdminCount <= 1) {
+              throw new ConflictError("At least one active Admin user must remain");
+            }
+          }
+
+          const deactivationResult = await tx.user.updateMany({
+            where: {
+              id,
+              isActive: true,
+              deactivatedAt: null,
+            },
+            data: {
+              isActive: false,
+            },
+          });
+
+          if (deactivationResult.count === 0) {
+            throw new InternalError("User deactivation state could not be updated");
+          }
+
+          const deactivatedUser = await tx.user.findUnique({
+            where: { id },
+            include: userWithRoleInclude,
+          });
+
+          if (!deactivatedUser) {
+            throw new NotFoundError("User not found");
+          }
+
+          return deactivatedUser;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (error instanceof ConflictError || error instanceof NotFoundError) {
+        throw error;
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2025") {
+          throw new NotFoundError("User not found");
+        }
+        throw new InternalError("Database error in deactivateById");
+      }
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new InternalError("Invalid query for deactivateById");
       }
       throw error;
     }
