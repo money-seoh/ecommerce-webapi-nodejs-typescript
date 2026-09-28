@@ -33,6 +33,17 @@ const userWithRoleInclude = {
 export class UserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  private readonly anyNonDeactivatedAdminWhere = {
+    deactivatedAt: null,
+    userRoles: {
+      some: {
+        role: {
+          name: "Admin",
+        },
+      },
+    },
+  } satisfies Prisma.UserWhereInput;
+
   private readonly activeAdminWhere = {
     isActive: true,
     deactivatedAt: null,
@@ -117,7 +128,9 @@ export class UserRepository {
 
   async hasAnyAdminUser(): Promise<boolean> {
     try {
-      const adminCount = await this.prisma.user.count({ where: this.activeAdminWhere });
+      const adminCount = await this.prisma.user.count({
+        where: this.anyNonDeactivatedAdminWhere,
+      });
       return adminCount > 0;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -235,7 +248,6 @@ export class UserRepository {
             },
             data: {
               isActive: false,
-              deactivatedAt: new Date(),
             },
           });
 

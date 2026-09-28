@@ -209,6 +209,8 @@ describe("UserRepository", () => {
           where: expect.objectContaining({ deactivatedAt: null }),
         }),
       );
+      const queryArgs = (prisma.user.count as jest.Mock).mock.calls[0][0];
+      expect(queryArgs.where).not.toHaveProperty("isActive");
     });
 
     it("should return false when no Admin exists", async () => {
@@ -311,12 +313,11 @@ describe("UserRepository", () => {
   });
 
   describe("deactivateById", () => {
-    it("should update deactivation state atomically and set deactivatedAt", async () => {
-      const deactivatedAt = new Date("2024-01-03T00:00:00.000Z");
+    it("should update deactivation state atomically by setting isActive to false", async () => {
       const user = buildUserWithRole({
         id: 7,
         isActive: false,
-        deactivatedAt,
+        deactivatedAt: null,
         userRoles: [{ role: { id: 2, name: "Customer" } }],
       });
       const prisma = makePrismaClient();
@@ -347,7 +348,6 @@ describe("UserRepository", () => {
         },
         data: {
           isActive: false,
-          deactivatedAt: expect.any(Date),
         },
       });
       expect(prisma.user.count).not.toHaveBeenCalled();
