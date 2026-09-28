@@ -118,20 +118,34 @@ export class UserService {
     return this.toResponseDto(user);
   }
 
+  async getCurrentUser(userId: number): Promise<UserResponseDto> {
+    const user = await this.getActiveUserById(userId);
+    return this.toResponseDto(user);
+  }
+
+  async assertActiveUserWithRole(userId: number, role: RoleName): Promise<void> {
+    const user = await this.getActiveUserById(userId);
+    const hasRole = user.userRoles.some(({ role: userRole }) => userRole.name === role);
+    if (!hasRole) {
+      throw new ForbiddenError(`${role} role is required`);
+    }
+  }
+
   async assertActiveAdminUser(userId: number): Promise<void> {
+    await this.assertActiveUserWithRole(userId, ROLE_NAMES.ADMIN);
+  }
+
+  async hasAnyAdminUsers(): Promise<boolean> {
+    return this.userRepository.hasAnyAdminUser();
+  }
+
+  private async getActiveUserById(userId: number): Promise<UserWithRole> {
     const user = await this.userRepository.findById(userId);
     if (!user || !user.isActive || user.deactivatedAt !== null) {
       throw new UnauthorizedError("Authentication required");
     }
 
-    const hasAdminRole = user.userRoles.some(({ role }) => role.name === ROLE_NAMES.ADMIN);
-    if (!hasAdminRole) {
-      throw new ForbiddenError("Admin role is required");
-    }
-  }
-
-  async hasAnyAdminUsers(): Promise<boolean> {
-    return this.userRepository.hasAnyAdminUser();
+    return user;
   }
 
   private async ensureEmailIsAvailable(email: string): Promise<void> {

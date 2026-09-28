@@ -1,6 +1,8 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { userController } from "../config/container";
+import { userController, userService } from "../config/container";
+import { ROLE_NAMES } from "../dtos/user.dto";
+import { requireAuthenticatedUser, requireRoles } from "../middlewares/auth.middleware";
 import { TooManyRequestsError } from "../utils/errors";
 
 // Public self-registration endpoint: role is always forced to Customer and
@@ -13,6 +15,15 @@ const customerLoginRateLimit = rateLimit({
   legacyHeaders: false,
   handler: (_req, _res, next) => {
     next(new TooManyRequestsError("Too many customer login attempts"));
+  },
+});
+const customerProfileRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many customer profile requests"));
   },
 });
 
@@ -38,6 +49,33 @@ const customerLoginRateLimit = rateLimit({
  *         description: Too many login attempts
  */
 router.post("/login", customerLoginRateLimit, userController.loginCustomer);
+
+/**
+ * @openapi
+ * /api/v1/customers/me:
+ *   get:
+ *     summary: Get the authenticated customer profile
+ *     tags:
+ *       - Customers
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Customer profile retrieved successfully
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Customer role is required
+ *       429:
+ *         description: Too many customer profile requests
+ */
+router.get(
+  "/me",
+  customerProfileRateLimit,
+  requireAuthenticatedUser(userService),
+  requireRoles([ROLE_NAMES.CUSTOMER]),
+  userController.getCurrentCustomer,
+);
 
 router.post("/register", userController.registerCustomer);
 
