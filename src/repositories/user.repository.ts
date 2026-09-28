@@ -186,6 +186,9 @@ export class UserRepository {
         throw error;
       }
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2025") {
+          throw new NotFoundError("User not found");
+        }
         throw new InternalError("Database error in activateById");
       }
       if (error instanceof Prisma.PrismaClientValidationError) {

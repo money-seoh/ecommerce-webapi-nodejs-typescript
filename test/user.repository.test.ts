@@ -293,6 +293,14 @@ describe("UserRepository", () => {
       await expect(repo.activateById(7)).rejects.toBeInstanceOf(InternalError);
     });
 
+    it("should throw NotFoundError on P2025 during activation transaction", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockRejectedValue(makeKnownRequestError("P2025"));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.activateById(7)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
     it("should throw InternalError on PrismaClientValidationError", async () => {
       const prisma = makePrismaClient();
       (prisma.$transaction as jest.Mock).mockRejectedValue(makeValidationError());

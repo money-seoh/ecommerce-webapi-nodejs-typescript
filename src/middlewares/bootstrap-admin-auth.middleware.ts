@@ -5,12 +5,12 @@ import { ForbiddenError, UnauthorizedError } from "../utils/errors";
 import { InvalidAccessTokenError, verifyAccessToken } from "../utils/token";
 
 function extractBearerToken(authorizationHeader: string | undefined): string {
-  const [scheme, token] = authorizationHeader?.trim().split(/\s+/, 2) ?? [];
-  if (scheme !== "Bearer" || !token) {
+  const bearerMatch = authorizationHeader?.trim().match(/^Bearer\s+(\S+)$/);
+  if (!bearerMatch) {
     throw new UnauthorizedError("Authentication required");
   }
 
-  return token;
+  return bearerMatch[1];
 }
 
 async function assertAdminAuth(userService: UserService, req: Request): Promise<void> {

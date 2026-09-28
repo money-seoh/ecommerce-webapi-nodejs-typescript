@@ -319,23 +319,26 @@ describe("POST /api/v1/admin/users", () => {
   });
 
   it("should return 401 for activation when no authorization header is provided", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+
     const app = createApp();
     const response = await request(app).patch("/api/v1/admin/users/2/activate");
 
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(activateUserSpy).not.toHaveBeenCalled();
-    expect(hasAnyAdminUsersSpy).not.toHaveBeenCalled();
+    expect(hasAnyAdminUsersSpy).toHaveBeenCalled();
     expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
   });
 
-  it("should return 401 for activation when the bearer token is malformed", async () => {
+  it("should return 401 for activation when the bearer token has extra fields", async () => {
     hasAnyAdminUsersSpy.mockResolvedValue(true);
+    const adminToken = createAccessToken(1, "Admin");
 
     const app = createApp();
     const response = await request(app)
       .patch("/api/v1/admin/users/2/activate")
-      .set("authorization", "******");
+      .set("authorization", "Bearer " + adminToken + " extra");
 
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
@@ -343,8 +346,33 @@ describe("POST /api/v1/admin/users", () => {
     expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
   });
 
+  it("should allow activation without auth when no Admin exists yet", async () => {
+    activateUserSpy.mockResolvedValue({
+      id: 2,
+      firstName: "John",
+      lastName: "Smith",
+      email: "john.smith@example.com",
+      mobileNumber: "+15559876543",
+      role: "Customer",
+      isActive: true,
+      deactivatedAt: null,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-02T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+    const response = await request(app).patch("/api/v1/admin/users/2/activate");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ id: 2, isActive: true, deactivatedAt: null });
+    expect(activateUserSpy).toHaveBeenCalledWith(2);
+    expect(hasAnyAdminUsersSpy).toHaveBeenCalled();
+    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+  });
+
   it("should return 401 for activation when the admin token subject is inactive", async () => {
     const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
     assertActiveAdminUserSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
 
     const app = createApp();
@@ -360,6 +388,7 @@ describe("POST /api/v1/admin/users", () => {
 
   it("should return 401 for activation when the admin token subject does not exist", async () => {
     const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
     assertActiveAdminUserSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
 
     const app = createApp();
