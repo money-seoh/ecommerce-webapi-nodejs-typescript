@@ -5,6 +5,7 @@ import {
   createAdminUserSchema,
   customerLoginSchema,
   registerCustomerSchema,
+  userIdParamSchema,
 } from "../dtos/user.dto";
 import { ValidationError } from "../utils/errors";
 
@@ -53,6 +54,20 @@ export class UserController {
 
       const authResponse = await this.userService.loginCustomer(parseResult.data);
       res.status(200).json({ data: authResponse });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  activateUserByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parseResult = userIdParamSchema.safeParse(req.params);
+      if (!parseResult.success) {
+        throw toValidationError(parseResult.error);
+      }
+
+      const user = await this.userService.activateUser(parseResult.data.userId);
+      res.status(200).json({ data: user });
     } catch (error) {
       next(error);
     }

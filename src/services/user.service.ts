@@ -104,6 +104,23 @@ export class UserService {
     };
   }
 
+  async activateUser(userId: number): Promise<UserResponseDto> {
+    const user = await this.userRepository.activateById(userId);
+    return this.toResponseDto(user);
+  }
+
+  async assertActiveAdminUser(userId: number): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user || !user.isActive || user.deactivatedAt !== null) {
+      throw new UnauthorizedError("Authentication required");
+    }
+
+    const hasAdminRole = user.userRoles.some(({ role }) => role.name === ROLE_NAMES.ADMIN);
+    if (!hasAdminRole) {
+      throw new ForbiddenError("Admin role is required");
+    }
+  }
+
   async hasAnyAdminUsers(): Promise<boolean> {
     return this.userRepository.hasAnyAdminUser();
   }

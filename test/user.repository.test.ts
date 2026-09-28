@@ -9,6 +9,7 @@ interface MockPrismaClient {
     findUnique: jest.Mock;
     create: jest.Mock;
     count: jest.Mock;
+    updateMany: jest.Mock;
   };
 }
 
@@ -19,6 +20,7 @@ function makePrismaClient(): MockPrismaClient {
       findUnique: jest.fn(),
       create: jest.fn(),
       count: jest.fn(),
+      updateMany: jest.fn(),
     },
   };
 }
@@ -221,6 +223,90 @@ describe("UserRepository", () => {
       (prisma.user.count as jest.Mock).mockRejectedValue(makeKnownRequestError("P2001"));
       const repo = new UserRepository(prisma as never);
       await expect(repo.hasAnyAdminUser()).rejects.toBeInstanceOf(InternalError);
+    });
+  });
+
+  describe("activateById", () => {
+    it("should update activation state atomically and clear deactivatedAt", async () => {
+      const user = buildUserWithRole({ id: 7, isActive: true, deactivatedAt: null });
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      (prisma.user.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(user);
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.activateById(7)).resolves.toEqual(user);
+      expect(prisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+      expect(prisma.user.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 7,
+          OR: [
+            { isActive: false },
+            { deactivatedAt: { not: null } },
+          ],
+        },
+        data: {
+          isActive: true,
+          deactivatedAt: null,
+        },
+      });
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 7 },
+        include: expect.any(Object),
+      });
+    });
+
+    it("should throw NotFoundError when the user does not exist", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      (prisma.user.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.activateById(7)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("should throw ConflictError when the user is already active", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      (prisma.user.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 7, isActive: true, deactivatedAt: null });
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.activateById(7)).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("should throw InternalError on PrismaClientKnownRequestError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockRejectedValue(makeKnownRequestError("P2001"));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.activateById(7)).rejects.toBeInstanceOf(InternalError);
+    });
+
+    it("should throw NotFoundError on P2025 during activation transaction", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockRejectedValue(makeKnownRequestError("P2025"));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.activateById(7)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("should throw InternalError on PrismaClientValidationError", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockRejectedValue(makeValidationError());
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.activateById(7)).rejects.toBeInstanceOf(InternalError);
     });
   });
 });

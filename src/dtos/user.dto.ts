@@ -57,6 +57,14 @@ export const customerLoginSchema = z
 
 export type CustomerLoginDto = z.infer<typeof customerLoginSchema>;
 
+export const userIdParamSchema = z
+  .object({
+    userId: z.coerce.number().int().positive("User id must be a positive integer"),
+  })
+  .strict();
+
+export type UserIdParamDto = z.infer<typeof userIdParamSchema>;
+
 export interface UserResponseDto {
   id: number;
   firstName: string;

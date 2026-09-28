@@ -2,9 +2,52 @@ import { NextFunction, Request, Response } from "express";
 import { ROLE_NAMES } from "../dtos/user.dto";
 import { UserService } from "../services/user.service";
 import { ForbiddenError, UnauthorizedError } from "../utils/errors";
+import { InvalidAccessTokenError, verifyAccessToken } from "../utils/token";
 
-function hasAuthenticatedContext(authorizationHeader: string | undefined): boolean {
-  return Boolean(authorizationHeader?.trim());
+function extractBearerToken(authorizationHeader: string | undefined): string {
+  const bearerMatch = authorizationHeader?.trim().match(/^Bearer\s+(\S+)$/);
+  if (!bearerMatch) {
+    throw new UnauthorizedError("Authentication required");
+  }
+
+  return bearerMatch[1];
+}
+
+async function assertAdminAuth(userService: UserService, req: Request): Promise<void> {
+  const token = extractBearerToken(req.header("authorization"));
+
+  const claims = (() => {
+    try {
+      return verifyAccessToken(token);
+    } catch (error) {
+      if (error instanceof InvalidAccessTokenError) {
+        throw new UnauthorizedError("Authentication required");
+      }
+      throw error;
+    }
+  })();
+
+  if (claims.role !== ROLE_NAMES.ADMIN) {
+    throw new ForbiddenError("Admin role is required");
+  }
+
+  const userId = Number(claims.sub);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new UnauthorizedError("Authentication required");
+  }
+
+  await userService.assertActiveAdminUser(userId);
+}
+
+export function requireAdminAuth(userService: UserService) {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await assertAdminAuth(userService, req);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export function requireAdminAuthAfterBootstrap(userService: UserService) {
@@ -16,15 +59,7 @@ export function requireAdminAuthAfterBootstrap(userService: UserService) {
         return;
       }
 
-      if (!hasAuthenticatedContext(req.header("authorization"))) {
-        throw new UnauthorizedError("Authentication required");
-      }
-
-      const callerRole = req.header("x-user-role");
-      if (callerRole !== ROLE_NAMES.ADMIN) {
-        throw new ForbiddenError("Admin role is required");
-      }
-
+      await assertAdminAuth(userService, req);
       next();
     } catch (error) {
       next(error);
