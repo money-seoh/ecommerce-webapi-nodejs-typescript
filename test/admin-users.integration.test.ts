@@ -16,15 +16,15 @@ describe("POST /api/v1/admin/users", () => {
   let createAdminUserSpy: jest.SpyInstance;
   let activateUserSpy: jest.SpyInstance;
   let deactivateUserSpy: jest.SpyInstance;
-  let assertActiveAdminUserSpy: jest.SpyInstance;
+  let assertActiveUserWithRoleSpy: jest.SpyInstance;
   let hasAnyAdminUsersSpy: jest.SpyInstance;
 
   beforeEach(() => {
     createAdminUserSpy = jest.spyOn(UserService.prototype, "createAdminUser");
     activateUserSpy = jest.spyOn(UserService.prototype, "activateUser");
     deactivateUserSpy = jest.spyOn(UserService.prototype, "deactivateUser");
-    assertActiveAdminUserSpy = jest
-      .spyOn(UserService.prototype, "assertActiveAdminUser")
+    assertActiveUserWithRoleSpy = jest
+      .spyOn(UserService.prototype, "assertActiveUserWithRole")
       .mockResolvedValue();
     hasAnyAdminUsersSpy = jest
       .spyOn(UserService.prototype, "hasAnyAdminUsers")
@@ -35,7 +35,7 @@ describe("POST /api/v1/admin/users", () => {
     createAdminUserSpy.mockRestore();
     activateUserSpy.mockRestore();
     deactivateUserSpy.mockRestore();
-    assertActiveAdminUserSpy.mockRestore();
+    assertActiveUserWithRoleSpy.mockRestore();
     hasAnyAdminUsersSpy.mockRestore();
   });
 
@@ -251,7 +251,7 @@ describe("POST /api/v1/admin/users", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.data).toMatchObject({ email: "jane.doe@example.com", role: "Admin", isActive: true });
-    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
   });
 
   it("should activate an inactive user and return 200 when an Admin exists and caller is Admin", async () => {
@@ -277,7 +277,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({ id: 2, isActive: true, deactivatedAt: null });
     expect(activateUserSpy).toHaveBeenCalledWith(2);
-    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
   });
 
   it("should return 400 when activation userId path param is invalid", async () => {
@@ -331,7 +331,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(activateUserSpy).not.toHaveBeenCalled();
     expect(hasAnyAdminUsersSpy).toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveUserWithRoleSpy).not.toHaveBeenCalled();
   });
 
   it("should return 401 for activation when the bearer token has extra fields", async () => {
@@ -346,7 +346,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(activateUserSpy).not.toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveUserWithRoleSpy).not.toHaveBeenCalled();
   });
 
   it("should allow activation without auth when no Admin exists yet", async () => {
@@ -370,13 +370,13 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.body.data).toMatchObject({ id: 2, isActive: true, deactivatedAt: null });
     expect(activateUserSpy).toHaveBeenCalledWith(2);
     expect(hasAnyAdminUsersSpy).toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveUserWithRoleSpy).not.toHaveBeenCalled();
   });
 
   it("should return 401 for activation when the admin token subject is inactive", async () => {
     const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
     hasAnyAdminUsersSpy.mockResolvedValue(true);
-    assertActiveAdminUserSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
+    assertActiveUserWithRoleSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
 
     const app = createApp();
     const response = await request(app)
@@ -386,13 +386,13 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(activateUserSpy).not.toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
   });
 
   it("should return 401 for activation when the admin token subject does not exist", async () => {
     const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
     hasAnyAdminUsersSpy.mockResolvedValue(true);
-    assertActiveAdminUserSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
+    assertActiveUserWithRoleSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
 
     const app = createApp();
     const response = await request(app)
@@ -402,7 +402,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(activateUserSpy).not.toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
   });
 
   it("should return 403 for activation when an Admin exists and caller is not Admin", async () => {
@@ -416,7 +416,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe("FORBIDDEN");
     expect(activateUserSpy).not.toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(2, "Customer");
   });
 
   it("should return 429 when the activation rate limit is exceeded", async () => {
@@ -472,7 +472,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({ id: 2, isActive: false });
     expect(deactivateUserSpy).toHaveBeenCalledWith(1, 2);
-    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
   });
 
   it("should return 400 when deactivation userId path param is invalid", async () => {
@@ -545,7 +545,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(deactivateUserSpy).not.toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveUserWithRoleSpy).not.toHaveBeenCalled();
     expect(hasAnyAdminUsersSpy).not.toHaveBeenCalled();
   });
 
@@ -560,12 +560,12 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(deactivateUserSpy).not.toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveUserWithRoleSpy).not.toHaveBeenCalled();
   });
 
   it("should return 401 for deactivation when the admin token subject is inactive", async () => {
     const { UnauthorizedError } = jest.requireActual("../src/utils/errors");
-    assertActiveAdminUserSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
+    assertActiveUserWithRoleSpy.mockRejectedValueOnce(new UnauthorizedError("Authentication required"));
 
     const app = createApp();
     const response = await request(app)
@@ -575,7 +575,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(deactivateUserSpy).not.toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).toHaveBeenCalledWith(1);
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
   });
 
   it("should return 403 for deactivation when caller is not Admin", async () => {
@@ -587,7 +587,7 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe("FORBIDDEN");
     expect(deactivateUserSpy).not.toHaveBeenCalled();
-    expect(assertActiveAdminUserSpy).not.toHaveBeenCalled();
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(2, "Customer");
   });
 
   it("should return 429 when the deactivation rate limit is exceeded", async () => {

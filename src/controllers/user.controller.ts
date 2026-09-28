@@ -59,6 +59,20 @@ export class UserController {
     }
   };
 
+  getCurrentCustomer = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const actorUserId = Number(res.locals.authenticatedUserId);
+      if (!Number.isInteger(actorUserId) || actorUserId <= 0) {
+        throw new UnauthorizedError("Authentication required");
+      }
+
+      const user = await this.userService.getCurrentUser(actorUserId);
+      res.status(200).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   activateUserByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const parseResult = userIdParamSchema.safeParse(req.params);

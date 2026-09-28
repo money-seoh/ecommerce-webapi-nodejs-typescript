@@ -435,6 +435,73 @@ describe("UserService", () => {
     });
   });
 
+  describe("getCurrentUser", () => {
+    it("should return the current active user profile", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({
+          id: 7,
+          isActive: true,
+          deactivatedAt: null,
+          userRoles: [{ role: { id: 2, name: "Customer" } }],
+        }),
+      );
+
+      await expect(service.getCurrentUser(7)).resolves.toMatchObject({
+        id: 7,
+        role: "Customer",
+        isActive: true,
+      });
+    });
+
+    it("should reject when the current user does not exist", async () => {
+      userRepository.findById.mockResolvedValue(null);
+
+      await expect(service.getCurrentUser(7)).rejects.toBeInstanceOf(UnauthorizedError);
+    });
+  });
+
+  describe("assertActiveUserWithRole", () => {
+    it("should allow an active user with the expected role", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({
+          id: 8,
+          isActive: true,
+          deactivatedAt: null,
+          userRoles: [{ role: { id: 2, name: "Customer" } }],
+        }),
+      );
+
+      await expect(service.assertActiveUserWithRole(8, "Customer")).resolves.toBeUndefined();
+      expect(userRepository.findById).toHaveBeenCalledWith(8);
+    });
+
+    it("should reject when the user is inactive", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({
+          id: 8,
+          isActive: false,
+          deactivatedAt: null,
+          userRoles: [{ role: { id: 2, name: "Customer" } }],
+        }),
+      );
+
+      await expect(service.assertActiveUserWithRole(8, "Customer")).rejects.toBeInstanceOf(UnauthorizedError);
+    });
+
+    it("should reject when the user does not have the expected role", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({
+          id: 8,
+          isActive: true,
+          deactivatedAt: null,
+          userRoles: [{ role: { id: 1, name: "Admin" } }],
+        }),
+      );
+
+      await expect(service.assertActiveUserWithRole(8, "Customer")).rejects.toBeInstanceOf(ForbiddenError);
+    });
+  });
+
   describe("assertActiveAdminUser", () => {
     it("should allow an active admin user", async () => {
       userRepository.findById.mockResolvedValue(
