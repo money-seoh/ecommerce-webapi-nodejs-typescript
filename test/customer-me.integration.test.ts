@@ -106,4 +106,33 @@ describe("GET /api/v1/customers/me", () => {
     expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
     expect(getCurrentUserSpy).not.toHaveBeenCalled();
   });
+
+  it("should return 429 when the customer profile rate limit is exceeded", async () => {
+    getCurrentUserSpy.mockResolvedValue({
+      id: 2,
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane.doe@example.com",
+      mobileNumber: "+15551234567",
+      role: "Customer",
+      isActive: true,
+      deactivatedAt: null,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-02T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await request(app)
+        .get("/api/v1/customers/me")
+        .set(customerAuthorizationHeader());
+    }
+
+    const response = await request(app)
+      .get("/api/v1/customers/me")
+      .set(customerAuthorizationHeader());
+
+    expect(response.status).toBe(429);
+    expect(response.body.error.code).toBe("TOO_MANY_REQUESTS");
+  });
 });

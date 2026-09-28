@@ -17,6 +17,15 @@ const customerLoginRateLimit = rateLimit({
     next(new TooManyRequestsError("Too many customer login attempts"));
   },
 });
+const customerProfileRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many customer profile requests"));
+  },
+});
 
 /**
  * @openapi
@@ -60,6 +69,7 @@ router.post("/login", customerLoginRateLimit, userController.loginCustomer);
  */
 router.get(
   "/me",
+  customerProfileRateLimit,
   requireAuthenticatedUser(userService),
   requireRoles([ROLE_NAMES.CUSTOMER]),
   userController.getCurrentCustomer,
