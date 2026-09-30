@@ -14,6 +14,7 @@ function customerAuthorizationHeader(): { authorization: string } {
 
 describe("POST /api/v1/admin/users", () => {
   let createAdminUserSpy: jest.SpyInstance;
+  let updateAdminUserSpy: jest.SpyInstance;
   let activateUserSpy: jest.SpyInstance;
   let deactivateUserSpy: jest.SpyInstance;
   let assertActiveUserWithRoleSpy: jest.SpyInstance;
@@ -21,6 +22,7 @@ describe("POST /api/v1/admin/users", () => {
 
   beforeEach(() => {
     createAdminUserSpy = jest.spyOn(UserService.prototype, "createAdminUser");
+    updateAdminUserSpy = jest.spyOn(UserService.prototype, "updateAdminUser");
     activateUserSpy = jest.spyOn(UserService.prototype, "activateUser");
     deactivateUserSpy = jest.spyOn(UserService.prototype, "deactivateUser");
     assertActiveUserWithRoleSpy = jest
@@ -33,6 +35,7 @@ describe("POST /api/v1/admin/users", () => {
 
   afterEach(() => {
     createAdminUserSpy.mockRestore();
+    updateAdminUserSpy.mockRestore();
     activateUserSpy.mockRestore();
     deactivateUserSpy.mockRestore();
     assertActiveUserWithRoleSpy.mockRestore();
@@ -182,6 +185,61 @@ describe("POST /api/v1/admin/users", () => {
     expect(response.body.error.code).toBe("INTERNAL_ERROR");
   });
 
+  it("should update a user and return 200 when the payload is valid", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+    updateAdminUserSpy.mockResolvedValue({
+      id: 2,
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane.doe@example.com",
+      mobileNumber: "+15551234567",
+      role: "Customer",
+      isActive: true,
+      deactivatedAt: null,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-02T00:00:00.000Z"),
+    });
+
+    const app = createApp();
+    const response = await request(app)
+      .put("/api/v1/admin/users/2")
+      .set(adminAuthorizationHeader())
+      .send({
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane.doe@example.com",
+        mobileNumber: "+15551234567",
+        role: "Customer",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ id: 2, email: "jane.doe@example.com", role: "Customer" });
+    expect(updateAdminUserSpy).toHaveBeenCalledWith(2, expect.objectContaining({ role: "Customer" }));
+    expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
+  });
+
+  it("should reject invalid user updates before calling the service", async () => {
+    hasAnyAdminUsersSpy.mockResolvedValue(true);
+
+    const app = createApp();
+    const response = await request(app)
+      .put("/api/v1/admin/users/2")
+      .set(adminAuthorizationHeader())
+      .send({
+        firstName: "J".repeat(1001),
+        lastName: "Doe",
+        email: "jane.doe@example.com",
+        mobileNumber: "+15551234567",
+        role: "Customer",
+        isActive: true,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(Array.isArray(response.body.error.details)).toBe(true);
+    expect(updateAdminUserSpy).not.toHaveBeenCalled();
+  });
+
   it("should return 401 when an Admin already exists and no auth token is provided", async () => {
     hasAnyAdminUsersSpy.mockResolvedValue(true);
 
@@ -287,6 +345,17 @@ describe("POST /api/v1/admin/users", () => {
     const response = await request(app)
       .patch("/api/v1/admin/users/not-a-number/activate")
       .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(activateUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("should reject activation requests with unexpected body fields", async () => {
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/activate")
+      .send({ isActive: true });
 
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("VALIDATION_ERROR");
@@ -480,6 +549,18 @@ describe("POST /api/v1/admin/users", () => {
     const response = await request(app)
       .patch("/api/v1/admin/users/not-a-number/deactivate")
       .set(adminAuthorizationHeader());
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(deactivateUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("should reject deactivation requests with unexpected body fields", async () => {
+    const app = createApp();
+    const response = await request(app)
+      .patch("/api/v1/admin/users/2/deactivate")
+      .set(adminAuthorizationHeader())
+      .send({ isActive: false });
 
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("VALIDATION_ERROR");

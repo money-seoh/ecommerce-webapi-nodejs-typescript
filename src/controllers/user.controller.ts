@@ -5,7 +5,9 @@ import {
   createAdminUserSchema,
   customerLoginSchema,
   registerCustomerSchema,
+  updateAdminUserSchema,
   userIdParamSchema,
+  userStatusChangeSchema,
 } from "../dtos/user.dto";
 import { UnauthorizedError, ValidationError } from "../utils/errors";
 
@@ -59,6 +61,25 @@ export class UserController {
     }
   };
 
+  updateUserByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const paramsResult = userIdParamSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        throw toValidationError(paramsResult.error);
+      }
+
+      const bodyResult = updateAdminUserSchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        throw toValidationError(bodyResult.error);
+      }
+
+      const user = await this.userService.updateAdminUser(paramsResult.data.userId, bodyResult.data);
+      res.status(200).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getCurrentCustomer = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const actorUserId = Number(res.locals.authenticatedUserId);
@@ -75,6 +96,11 @@ export class UserController {
 
   activateUserByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const bodyResult = userStatusChangeSchema.safeParse(req.body ?? {});
+      if (!bodyResult.success) {
+        throw toValidationError(bodyResult.error);
+      }
+
       const parseResult = userIdParamSchema.safeParse(req.params);
       if (!parseResult.success) {
         throw toValidationError(parseResult.error);
@@ -89,6 +115,11 @@ export class UserController {
 
   deactivateUserByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const bodyResult = userStatusChangeSchema.safeParse(req.body ?? {});
+      if (!bodyResult.success) {
+        throw toValidationError(bodyResult.error);
+      }
+
       const parseResult = userIdParamSchema.safeParse(req.params);
       if (!parseResult.success) {
         throw toValidationError(parseResult.error);

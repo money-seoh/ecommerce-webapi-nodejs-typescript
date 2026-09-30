@@ -119,6 +119,77 @@ describe("UserService", () => {
     });
   });
 
+  describe("updateAdminUser", () => {
+    it("should update the profile, normalize email, and preserve the password when omitted", async () => {
+      userRepository.findByEmail.mockResolvedValue(buildUserWithRole({ id: 7 }));
+      roleRepository.findByName.mockResolvedValue({
+        id: 2,
+        name: "Customer",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      userRepository.updateById.mockResolvedValue(
+        buildUserWithRole({
+          id: 7,
+          email: "jane.doe@example.com",
+          userRoles: [{ role: { id: 2, name: "Customer" } }],
+        }),
+      );
+
+      await expect(
+        service.updateAdminUser(7, {
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "Jane.Doe@Example.COM",
+          mobileNumber: "+15551234567",
+          role: "Customer",
+        }),
+      ).resolves.toMatchObject({ id: 7, email: "jane.doe@example.com", role: "Customer" });
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(7, {
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane.doe@example.com",
+        mobileNumber: "+15551234567",
+        roleId: 2,
+      });
+    });
+
+    it("should reject an email already assigned to another user", async () => {
+      userRepository.findByEmail.mockResolvedValue(buildUserWithRole({ id: 8 }));
+
+      await expect(
+        service.updateAdminUser(7, {
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane.doe@example.com",
+          mobileNumber: "+15551234567",
+          role: "Customer",
+        }),
+      ).rejects.toBeInstanceOf(ConflictError);
+
+      expect(roleRepository.findByName).not.toHaveBeenCalled();
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("should reject an update when the assigned role is not configured", async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+      roleRepository.findByName.mockResolvedValue(null);
+
+      await expect(
+        service.updateAdminUser(7, {
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane.doe@example.com",
+          mobileNumber: "+15551234567",
+          role: "Customer",
+        }),
+      ).rejects.toBeInstanceOf(InternalError);
+
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+    });
+  });
+
   describe("registerCustomer", () => {
     it("should force role=Customer and isActive=false regardless of input", async () => {
       userRepository.findByEmail.mockResolvedValue(null);

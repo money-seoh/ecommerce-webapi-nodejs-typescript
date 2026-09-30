@@ -9,6 +9,7 @@ import {
   RegisterCustomerDto,
   RoleName,
   ROLE_NAMES,
+  UpdateAdminUserDto,
   UserResponseDto,
 } from "../dtos/user.dto";
 import { createAccessToken } from "../utils/token";
@@ -42,6 +43,31 @@ export class UserService {
       mobileNumber: dto.mobileNumber,
       passwordHash,
       isActive: dto.role === ROLE_NAMES.ADMIN,
+      roleId: role.id,
+    });
+
+    return this.toResponseDto(user);
+  }
+
+  async updateAdminUser(userId: number, dto: UpdateAdminUserDto): Promise<UserResponseDto> {
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    const existingEmailUser = await this.userRepository.findByEmail(normalizedEmail);
+    if (existingEmailUser && existingEmailUser.id !== userId) {
+      throw new ConflictError("A user with this email already exists");
+    }
+
+    const role = await this.roleRepository.findByName(dto.role);
+    if (!role) {
+      throw new InternalError(`Role not configured: ${dto.role}`);
+    }
+
+    const passwordHash = dto.password === undefined ? undefined : await hashPassword(dto.password);
+    const user = await this.userRepository.updateById(userId, {
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: normalizedEmail,
+      mobileNumber: dto.mobileNumber,
+      ...(passwordHash === undefined ? {} : { passwordHash }),
       roleId: role.id,
     });
 

@@ -8,7 +8,11 @@ interface MockPrismaClient {
   user: {
     findUnique: jest.Mock;
     create: jest.Mock;
+    update: jest.Mock;
     count: jest.Mock;
+    updateMany: jest.Mock;
+  };
+  userRole: {
     updateMany: jest.Mock;
   };
 }
@@ -19,7 +23,11 @@ function makePrismaClient(): MockPrismaClient {
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       count: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    userRole: {
       updateMany: jest.fn(),
     },
   };
@@ -194,6 +202,96 @@ describe("UserRepository", () => {
       (prisma.user.create as jest.Mock).mockRejectedValue(unknownError);
       const repo = new UserRepository(prisma as never);
       await expect(repo.create(createData)).rejects.toBe(unknownError);
+    });
+  });
+
+  describe("updateById", () => {
+    const updateData = {
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane.doe@example.com",
+      mobileNumber: "+15551234567",
+      roleId: 1,
+    };
+
+    it("should update user information and its role transactionally", async () => {
+      const existingUser = buildUserWithRole({
+        id: 7,
+        userRoles: [{ role: { id: 2, name: "Customer" } }],
+      });
+      const updatedUser = buildUserWithRole({
+        id: 7,
+        firstName: "Jane",
+        userRoles: [{ role: { id: 1, name: "Admin" } }],
+      });
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      prisma.user.findUnique
+        .mockResolvedValueOnce(existingUser)
+        .mockResolvedValueOnce(updatedUser);
+      prisma.user.update.mockResolvedValue(updatedUser);
+      prisma.userRole.updateMany.mockResolvedValue({ count: 1 });
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.updateById(7, updateData)).resolves.toEqual(updatedUser);
+      expect(prisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 7 },
+        data: {
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane.doe@example.com",
+          mobileNumber: "+15551234567",
+        },
+      });
+      expect(prisma.userRole.updateMany).toHaveBeenCalledWith({
+        where: { userId: 7 },
+        data: { roleId: 1 },
+      });
+    });
+
+    it("should not demote the last active Admin", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      prisma.user.findUnique.mockResolvedValue(
+        buildUserWithRole({
+          id: 7,
+          isActive: true,
+          userRoles: [{ role: { id: 1, name: "Admin" } }],
+        }),
+      );
+      prisma.user.count.mockResolvedValue(1);
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.updateById(7, { ...updateData, roleId: 2 })).rejects.toBeInstanceOf(ConflictError);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.userRole.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("should throw ConflictError when the email uniqueness constraint fails", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockRejectedValue(makeKnownRequestError("P2002"));
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.updateById(7, updateData)).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("should throw NotFoundError when the user does not exist", async () => {
+      const prisma = makePrismaClient();
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
+        callback(prisma),
+      );
+      prisma.user.findUnique.mockResolvedValue(null);
+      const repo = new UserRepository(prisma as never);
+
+      await expect(repo.updateById(7, updateData)).rejects.toBeInstanceOf(NotFoundError);
     });
   });
 
