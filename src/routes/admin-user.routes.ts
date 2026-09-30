@@ -23,6 +23,15 @@ const adminUserActivationRateLimit = rateLimit({
     next(new TooManyRequestsError("Too many admin user activation attempts"));
   },
 });
+const adminUserUpdateRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many admin user update attempts"));
+  },
+});
 const adminUserDeactivationRateLimit = rateLimit({
   windowMs: 60_000,
   limit: 20,
@@ -38,6 +47,77 @@ router.post(
   adminUserCreationRateLimit,
   requireAdminAuthAfterBootstrap(userService),
   userController.createUserByAdmin,
+);
+
+/**
+ * @openapi
+ * /api/v1/admin/users/{userId}:
+ *   put:
+ *     summary: Update a user account
+ *     description: Requires an authenticated Admin bearer token. Account activation is managed by the dedicated status endpoints.
+ *     tags:
+ *       - Admin Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [firstName, lastName, email, mobileNumber, role]
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 1000
+ *               lastName:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 1000
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 maxLength: 1000
+ *               mobileNumber:
+ *                 type: string
+ *                 pattern: '^\\+[1-9]\\d{1,14}$'
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 maxLength: 24
+ *               role:
+ *                 type: string
+ *                 enum: [Admin, Customer]
+ *     responses:
+ *       200:
+ *         description: User account updated successfully
+ *       400:
+ *         description: Invalid user id or user information
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin role is required
+ *       404:
+ *         description: User not found
+ *       409:
+ *         description: Email already exists or update would remove the last active Admin
+ *       429:
+ *         description: Too many user update attempts
+ */
+router.put(
+  "/:userId",
+  adminUserUpdateRateLimit,
+  requireAdminAuth(userService),
+  userController.updateUserByAdmin,
 );
 
 /**

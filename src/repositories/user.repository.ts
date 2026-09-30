@@ -11,6 +11,15 @@ export interface CreateUserRecord {
   roleId: number;
 }
 
+export interface UpdateUserRecord {
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobileNumber: string;
+  passwordHash?: string;
+  roleId: number;
+}
+
 export interface UserWithRole extends User {
   userRoles: {
     role: {
@@ -121,6 +130,82 @@ export class UserRepository {
       }
       if (error instanceof Prisma.PrismaClientValidationError) {
         throw new InternalError("Invalid user creation request");
+      }
+      throw error;
+    }
+  }
+
+  async updateById(id: number, data: UpdateUserRecord): Promise<UserWithRole> {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const existingUser = await tx.user.findUnique({
+            where: { id },
+            include: userWithRoleInclude,
+          });
+          if (!existingUser) {
+            throw new NotFoundError("User not found");
+          }
+
+          const isDemotingActiveAdmin =
+            existingUser.isActive &&
+            existingUser.userRoles.some(({ role }) => role.name === "Admin") &&
+            existingUser.userRoles[0].role.id !== data.roleId;
+          if (isDemotingActiveAdmin) {
+            const activeAdminCount = await tx.user.count({
+              where: this.activeAdminWhere,
+            });
+            if (activeAdminCount <= 1) {
+              throw new ConflictError("At least one active Admin user must remain");
+            }
+          }
+
+          await tx.user.update({
+            where: { id },
+            data: {
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email,
+              mobileNumber: data.mobileNumber,
+              ...(data.passwordHash === undefined ? {} : { passwordHash: data.passwordHash }),
+            },
+          });
+
+          const roleUpdate = await tx.userRole.updateMany({
+            where: { userId: id },
+            data: { roleId: data.roleId },
+          });
+          if (roleUpdate.count !== 1) {
+            throw new InternalError("User role assignment could not be updated");
+          }
+
+          const updatedUser = await tx.user.findUnique({
+            where: { id },
+            include: userWithRoleInclude,
+          });
+          if (!updatedUser) {
+            throw new NotFoundError("User not found");
+          }
+
+          return updatedUser;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (error instanceof ConflictError || error instanceof NotFoundError || error instanceof InternalError) {
+        throw error;
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2002") {
+          throw new ConflictError("A user with this email already exists");
+        }
+        if (error.code === "P2025") {
+          throw new NotFoundError("User not found");
+        }
+        throw new InternalError("Database error in updateById");
+      }
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new InternalError("Invalid user update request");
       }
       throw error;
     }

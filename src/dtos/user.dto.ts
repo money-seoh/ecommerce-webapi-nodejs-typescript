@@ -21,9 +21,9 @@ const e164MobileNumberSchema = z
   .regex(/^\+[1-9]\d{1,14}$/, "Mobile number must be a valid E.164 phone number");
 
 const baseUserFields = {
-  firstName: z.string().trim().min(1, "First name is required"),
-  lastName: z.string().trim().min(1, "Last name is required"),
-  email: z.string().trim().email("Email must be a valid email address"),
+  firstName: z.string().trim().min(1, "First name is required").max(1000, "First name must be at most 1000 characters long"),
+  lastName: z.string().trim().min(1, "Last name is required").max(1000, "Last name must be at most 1000 characters long"),
+  email: z.string().trim().max(1000, "Email must be at most 1000 characters long").email("Email must be a valid email address"),
   mobileNumber: e164MobileNumberSchema,
   password: passwordSchema,
 };
@@ -39,6 +39,20 @@ export const createAdminUserSchema = z.object({
 }).strict();
 
 export type CreateAdminUserDto = z.infer<typeof createAdminUserSchema>;
+
+/**
+ * DTO for admin-initiated user updates. Password may be changed, but account
+ * activation is managed through the dedicated status endpoints.
+ */
+export const updateAdminUserSchema = z.object({
+  ...baseUserFields,
+  password: passwordSchema.optional(),
+  role: z.enum([ROLE_NAMES.ADMIN, ROLE_NAMES.CUSTOMER]),
+}).strict();
+
+export type UpdateAdminUserDto = z.infer<typeof updateAdminUserSchema>;
+
+export const userStatusChangeSchema = z.object({}).strict();
 
 /**
  * DTO for customer self-registration (POST /api/v1/customers/register).
