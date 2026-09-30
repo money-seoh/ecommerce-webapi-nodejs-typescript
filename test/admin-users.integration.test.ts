@@ -207,14 +207,12 @@ describe("POST /api/v1/admin/users", () => {
       .send({
         firstName: "Jane",
         lastName: "Doe",
-        email: "jane.doe@example.com",
         mobileNumber: "+15551234567",
-        role: "Customer",
       });
 
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({ id: 2, email: "jane.doe@example.com", role: "Customer" });
-    expect(updateAdminUserSpy).toHaveBeenCalledWith(2, expect.objectContaining({ role: "Customer" }));
+    expect(updateAdminUserSpy).toHaveBeenCalledWith(2, expect.objectContaining({ firstName: "Jane" }));
     expect(assertActiveUserWithRoleSpy).toHaveBeenCalledWith(1, "Admin");
   });
 
@@ -228,9 +226,7 @@ describe("POST /api/v1/admin/users", () => {
       .send({
         firstName: "J".repeat(1001),
         lastName: "Doe",
-        email: "jane.doe@example.com",
         mobileNumber: "+15551234567",
-        role: "Customer",
         isActive: true,
       });
 

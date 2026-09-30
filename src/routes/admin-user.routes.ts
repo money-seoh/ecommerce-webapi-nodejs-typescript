@@ -73,7 +73,7 @@ router.post(
  *           schema:
  *             type: object
  *             additionalProperties: false
- *             required: [firstName, lastName, email, mobileNumber, role]
+ *             required: [firstName, lastName, mobileNumber]
  *             properties:
  *               firstName:
  *                 type: string
@@ -83,10 +83,6 @@ router.post(
  *                 type: string
  *                 minLength: 1
  *                 maxLength: 1000
- *               email:
- *                 type: string
- *                 format: email
- *                 maxLength: 1000
  *               mobileNumber:
  *                 type: string
  *                 pattern: '^\\+[1-9]\\d{1,14}$'
@@ -94,9 +90,6 @@ router.post(
  *                 type: string
  *                 minLength: 8
  *                 maxLength: 24
- *               role:
- *                 type: string
- *                 enum: [Admin, Customer]
  *     responses:
  *       200:
  *         description: User account updated successfully
@@ -108,8 +101,6 @@ router.post(
  *         description: Admin role is required
  *       404:
  *         description: User not found
- *       409:
- *         description: Email already exists or update would remove the last active Admin
  *       429:
  *         description: Too many user update attempts
  */
