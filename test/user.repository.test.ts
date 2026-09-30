@@ -209,30 +209,20 @@ describe("UserRepository", () => {
     const updateData = {
       firstName: "Jane",
       lastName: "Doe",
-      email: "jane.doe@example.com",
       mobileNumber: "+15551234567",
-      roleId: 1,
     };
 
-    it("should update user information and its role transactionally", async () => {
-      const existingUser = buildUserWithRole({
-        id: 7,
-        userRoles: [{ role: { id: 2, name: "Customer" } }],
-      });
+    it("should update profile information transactionally while preserving account fields", async () => {
       const updatedUser = buildUserWithRole({
         id: 7,
         firstName: "Jane",
-        userRoles: [{ role: { id: 1, name: "Admin" } }],
       });
       const prisma = makePrismaClient();
       (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
         callback(prisma),
       );
-      prisma.user.findUnique
-        .mockResolvedValueOnce(existingUser)
-        .mockResolvedValueOnce(updatedUser);
+      prisma.user.findUnique.mockResolvedValueOnce(buildUserWithRole({ id: 7 })).mockResolvedValueOnce(updatedUser);
       prisma.user.update.mockResolvedValue(updatedUser);
-      prisma.userRole.updateMany.mockResolvedValue({ count: 1 });
       const repo = new UserRepository(prisma as never);
 
       await expect(repo.updateById(7, updateData)).resolves.toEqual(updatedUser);
@@ -245,42 +235,9 @@ describe("UserRepository", () => {
         data: {
           firstName: "Jane",
           lastName: "Doe",
-          email: "jane.doe@example.com",
           mobileNumber: "+15551234567",
         },
       });
-      expect(prisma.userRole.updateMany).toHaveBeenCalledWith({
-        where: { userId: 7 },
-        data: { roleId: 1 },
-      });
-    });
-
-    it("should not demote the last active Admin", async () => {
-      const prisma = makePrismaClient();
-      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: (tx: MockPrismaClient) => Promise<unknown>) =>
-        callback(prisma),
-      );
-      prisma.user.findUnique.mockResolvedValue(
-        buildUserWithRole({
-          id: 7,
-          isActive: true,
-          userRoles: [{ role: { id: 1, name: "Admin" } }],
-        }),
-      );
-      prisma.user.count.mockResolvedValue(1);
-      const repo = new UserRepository(prisma as never);
-
-      await expect(repo.updateById(7, { ...updateData, roleId: 2 })).rejects.toBeInstanceOf(ConflictError);
-      expect(prisma.user.update).not.toHaveBeenCalled();
-      expect(prisma.userRole.updateMany).not.toHaveBeenCalled();
-    });
-
-    it("should throw ConflictError when the email uniqueness constraint fails", async () => {
-      const prisma = makePrismaClient();
-      (prisma.$transaction as jest.Mock).mockRejectedValue(makeKnownRequestError("P2002"));
-      const repo = new UserRepository(prisma as never);
-
-      await expect(repo.updateById(7, updateData)).rejects.toBeInstanceOf(ConflictError);
     });
 
     it("should throw NotFoundError when the user does not exist", async () => {

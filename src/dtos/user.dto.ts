@@ -45,12 +45,16 @@ export type CreateAdminUserDto = z.infer<typeof createAdminUserSchema>;
  * activation is managed through the dedicated status endpoints.
  */
 export const updateAdminUserSchema = z.object({
-  ...baseUserFields,
+  firstName: baseUserFields.firstName,
+  lastName: baseUserFields.lastName,
+  mobileNumber: baseUserFields.mobileNumber,
   password: passwordSchema.optional(),
-  role: z.enum([ROLE_NAMES.ADMIN, ROLE_NAMES.CUSTOMER]),
 }).strict();
 
 export type UpdateAdminUserDto = z.infer<typeof updateAdminUserSchema>;
+
+export const updateCustomerProfileSchema = updateAdminUserSchema;
+export type UpdateCustomerProfileDto = z.infer<typeof updateCustomerProfileSchema>;
 
 export const userStatusChangeSchema = z.object({}).strict();
 

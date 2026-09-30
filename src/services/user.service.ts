@@ -10,6 +10,7 @@ import {
   RoleName,
   ROLE_NAMES,
   UpdateAdminUserDto,
+  UpdateCustomerProfileDto,
   UserResponseDto,
 } from "../dtos/user.dto";
 import { createAccessToken } from "../utils/token";
@@ -50,25 +51,25 @@ export class UserService {
   }
 
   async updateAdminUser(userId: number, dto: UpdateAdminUserDto): Promise<UserResponseDto> {
-    const normalizedEmail = this.normalizeEmail(dto.email);
-    const existingEmailUser = await this.userRepository.findByEmail(normalizedEmail);
-    if (existingEmailUser && existingEmailUser.id !== userId) {
-      throw new ConflictError("A user with this email already exists");
-    }
-
-    const role = await this.roleRepository.findByName(dto.role);
-    if (!role) {
-      throw new InternalError(`Role not configured: ${dto.role}`);
-    }
-
     const passwordHash = dto.password === undefined ? undefined : await hashPassword(dto.password);
     const user = await this.userRepository.updateById(userId, {
       firstName: dto.firstName,
       lastName: dto.lastName,
-      email: normalizedEmail,
       mobileNumber: dto.mobileNumber,
       ...(passwordHash === undefined ? {} : { passwordHash }),
-      roleId: role.id,
+    });
+
+    return this.toResponseDto(user);
+  }
+
+  async updateCustomerProfile(userId: number, dto: UpdateCustomerProfileDto): Promise<UserResponseDto> {
+    await this.assertActiveUserWithRole(userId, ROLE_NAMES.CUSTOMER);
+    const passwordHash = dto.password === undefined ? undefined : await hashPassword(dto.password);
+    const user = await this.userRepository.updateById(userId, {
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      mobileNumber: dto.mobileNumber,
+      ...(passwordHash === undefined ? {} : { passwordHash }),
     });
 
     return this.toResponseDto(user);

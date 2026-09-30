@@ -77,6 +77,35 @@ router.get(
   userController.getCurrentCustomer,
 );
 
+/**
+ * @openapi
+ * /api/v1/customers/profile:
+ *   put:
+ *     summary: Update the authenticated customer profile
+ *     tags:
+ *       - Customers
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Customer profile updated successfully
+ *       400:
+ *         description: Invalid profile payload
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Customer role is required
+ *       404:
+ *         description: User not found
+ */
+router.put(
+  "/profile",
+  customerProfileRateLimit,
+  requireAuthenticatedUser(userService),
+  requireRoles([ROLE_NAMES.CUSTOMER]),
+  userController.updateCustomerProfile,
+);
+
 router.post("/register", userController.registerCustomer);
 
 export default router;

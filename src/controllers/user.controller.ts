@@ -6,6 +6,7 @@ import {
   customerLoginSchema,
   registerCustomerSchema,
   updateAdminUserSchema,
+  updateCustomerProfileSchema,
   userIdParamSchema,
   userStatusChangeSchema,
 } from "../dtos/user.dto";
@@ -88,6 +89,25 @@ export class UserController {
       }
 
       const user = await this.userService.getCurrentUser(actorUserId);
+      res.status(200).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateCustomerProfile = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const actorUserId = Number(res.locals.authenticatedUserId);
+      if (!Number.isInteger(actorUserId) || actorUserId <= 0) {
+        throw new UnauthorizedError("Authentication required");
+      }
+
+      const bodyResult = updateCustomerProfileSchema.safeParse(_req.body);
+      if (!bodyResult.success) {
+        throw toValidationError(bodyResult.error);
+      }
+
+      const user = await this.userService.updateCustomerProfile(actorUserId, bodyResult.data);
       res.status(200).json({ data: user });
     } catch (error) {
       next(error);
