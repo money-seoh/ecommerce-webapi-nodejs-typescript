@@ -164,6 +164,84 @@ describe("UserService", () => {
     });
   });
 
+  describe("admin user reads", () => {
+    it("should return one user by id without exposing the password hash", async () => {
+      userRepository.findById.mockResolvedValue(buildUserWithRole({ id: 9 }));
+
+      const result = await service.getUserById(9);
+
+      expect(result).toMatchObject({ id: 9, role: "Customer" });
+      expect(result).not.toHaveProperty("passwordHash");
+    });
+
+    it("should return NotFoundError when the requested user does not exist", async () => {
+      userRepository.findById.mockResolvedValue(null);
+      await expect(service.getUserById(999)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("should map paginated users and calculate total pages", async () => {
+      userRepository.findMany.mockResolvedValue({
+        users: [buildUserWithRole({ id: 2 }), buildUserWithRole({ id: 3 })],
+        totalItems: 21,
+      });
+
+      await expect(service.listUsers({ page: 2, limit: 10 })).resolves.toMatchObject({
+        data: [{ id: 2 }, { id: 3 }],
+        meta: { page: 2, limit: 10, totalItems: 21, totalPages: 3 },
+      });
+    });
+  });
+
+  describe("changeCustomerPassword", () => {
+    it("should verify and replace the current password hash", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({ id: 7, isActive: true, deactivatedAt: null }),
+      );
+      jest.mocked(comparePassword)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      await service.changeCustomerPassword(7, {
+        currentPassword: "Password1",
+        newPassword: "NewPassword2",
+      });
+
+      expect(comparePassword).toHaveBeenNthCalledWith(1, "Password1", "hashed-password");
+      expect(comparePassword).toHaveBeenNthCalledWith(2, "NewPassword2", "hashed-password");
+      expect(userRepository.updatePasswordHash).toHaveBeenCalledWith(7, "hashed-password");
+    });
+
+    it("should reject an incorrect current password", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({ id: 7, isActive: true, deactivatedAt: null }),
+      );
+      jest.mocked(comparePassword).mockResolvedValue(false);
+
+      await expect(
+        service.changeCustomerPassword(7, {
+          currentPassword: "WrongPassword1",
+          newPassword: "NewPassword2",
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedError);
+      expect(userRepository.updatePasswordHash).not.toHaveBeenCalled();
+    });
+
+    it("should reject reuse of the current password", async () => {
+      userRepository.findById.mockResolvedValue(
+        buildUserWithRole({ id: 7, isActive: true, deactivatedAt: null }),
+      );
+      jest.mocked(comparePassword).mockResolvedValue(true);
+
+      await expect(
+        service.changeCustomerPassword(7, {
+          currentPassword: "Password1",
+          newPassword: "Password1",
+        }),
+      ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+      expect(userRepository.updatePasswordHash).not.toHaveBeenCalled();
+    });
+  });
+
   describe("registerCustomer", () => {
     it("should force role=Customer and isActive=false regardless of input", async () => {
       userRepository.findByEmail.mockResolvedValue(null);

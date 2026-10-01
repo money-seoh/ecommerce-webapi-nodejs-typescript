@@ -1,11 +1,21 @@
 import { RoleRepository } from "../repositories/role.repository";
 import { UserRepository, UserWithRole } from "../repositories/user.repository";
 import { comparePassword, hashPassword } from "../utils/password";
-import { ConflictError, ForbiddenError, InternalError, UnauthorizedError } from "../utils/errors";
+import {
+  ConflictError,
+  ForbiddenError,
+  InternalError,
+  NotFoundError,
+  UnauthorizedError,
+  ValidationError,
+} from "../utils/errors";
 import {
   AuthTokenResponseDto,
+  ChangeCustomerPasswordDto,
   CustomerLoginDto,
   CreateAdminUserDto,
+  ListUsersQueryDto,
+  PaginatedUsersResponseDto,
   RegisterCustomerDto,
   RoleName,
   ROLE_NAMES,
@@ -73,6 +83,44 @@ export class UserService {
     });
 
     return this.toResponseDto(user);
+  }
+
+  async getUserById(userId: number): Promise<UserResponseDto> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    return this.toResponseDto(user);
+  }
+
+  async listUsers(query: ListUsersQueryDto): Promise<PaginatedUsersResponseDto> {
+    const result = await this.userRepository.findMany(query);
+    return {
+      data: result.users.map((user) => this.toResponseDto(user)),
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        totalItems: result.totalItems,
+        totalPages: Math.ceil(result.totalItems / query.limit),
+      },
+    };
+  }
+
+  async changeCustomerPassword(userId: number, dto: ChangeCustomerPasswordDto): Promise<void> {
+    const user = await this.getActiveUserById(userId);
+    const currentPasswordMatches = await comparePassword(dto.currentPassword, user.passwordHash);
+    if (!currentPasswordMatches) {
+      throw new UnauthorizedError("Current password is incorrect");
+    }
+
+    const reusesCurrentPassword = await comparePassword(dto.newPassword, user.passwordHash);
+    if (reusesCurrentPassword) {
+      throw new ValidationError("New password must be different from current password");
+    }
+
+    const passwordHash = await hashPassword(dto.newPassword);
+    await this.userRepository.updatePasswordHash(userId, passwordHash);
   }
 
   /**

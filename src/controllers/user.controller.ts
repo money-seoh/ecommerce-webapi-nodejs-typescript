@@ -2,8 +2,10 @@ import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { UserService } from "../services/user.service";
 import {
+  changeCustomerPasswordSchema,
   createAdminUserSchema,
   customerLoginSchema,
+  listUsersQuerySchema,
   registerCustomerSchema,
   updateAdminUserSchema,
   updateCustomerProfileSchema,
@@ -81,6 +83,34 @@ export class UserController {
     }
   };
 
+  getUserByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const paramsResult = userIdParamSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        throw toValidationError(paramsResult.error);
+      }
+
+      const user = await this.userService.getUserById(paramsResult.data.userId);
+      res.status(200).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listUsersByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const queryResult = listUsersQuerySchema.safeParse(req.query);
+      if (!queryResult.success) {
+        throw toValidationError(queryResult.error);
+      }
+
+      const result = await this.userService.listUsers(queryResult.data);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getCurrentCustomer = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const actorUserId = Number(res.locals.authenticatedUserId);
@@ -109,6 +139,25 @@ export class UserController {
 
       const user = await this.userService.updateCustomerProfile(actorUserId, bodyResult.data);
       res.status(200).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  changeCustomerPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const actorUserId = Number(res.locals.authenticatedUserId);
+      if (!Number.isInteger(actorUserId) || actorUserId <= 0) {
+        throw new UnauthorizedError("Authentication required");
+      }
+
+      const bodyResult = changeCustomerPasswordSchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        throw toValidationError(bodyResult.error);
+      }
+
+      await this.userService.changeCustomerPassword(actorUserId, bodyResult.data);
+      res.status(200).json({ data: { message: "Password changed successfully" } });
     } catch (error) {
       next(error);
     }

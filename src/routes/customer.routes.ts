@@ -26,6 +26,15 @@ const customerProfileRateLimit = rateLimit({
     next(new TooManyRequestsError("Too many customer profile requests"));
   },
 });
+const customerChangePasswordRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many password change attempts"));
+  },
+});
 
 /**
  * @openapi
@@ -104,6 +113,37 @@ router.put(
   requireAuthenticatedUser(userService),
   requireRoles([ROLE_NAMES.CUSTOMER]),
   userController.updateCustomerProfile,
+);
+
+/**
+ * @openapi
+ * /api/v1/customers/change-password:
+ *   post:
+ *     summary: Change the authenticated customer's password
+ *     tags:
+ *       - Customers
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Invalid password or password reuse
+ *       401:
+ *         description: Authentication required or current password is incorrect
+ *       403:
+ *         description: Customer role is required
+ *       429:
+ *         description: Too many password change attempts
+ */
+router.post(
+  "/change-password",
+  requireAuthenticatedUser(userService),
+  requireRoles([ROLE_NAMES.CUSTOMER]),
+  customerChangePasswordRateLimit,
+  userController.changeCustomerPassword,
 );
 
 router.post("/register", userController.registerCustomer);

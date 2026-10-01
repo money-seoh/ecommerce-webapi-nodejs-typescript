@@ -42,11 +42,97 @@ const adminUserDeactivationRateLimit = rateLimit({
   },
 });
 
+/**
+ * @openapi
+ * /api/v1/admin/users:
+ *   get:
+ *     summary: Search and list users
+ *     tags:
+ *       - Admin Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [Admin, Customer]
+ *       - in: query
+ *         name: isActive
+ *         schema:
+ *           type: boolean
+ *     responses:
+ *       200:
+ *         description: Paginated user list
+ *       400:
+ *         description: Invalid query parameters
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin role is required
+ */
+router.get(
+  "/",
+  requireAdminAuth(userService),
+  userController.listUsersByAdmin,
+);
+
 router.post(
   "/",
   adminUserCreationRateLimit,
   requireAdminAuthAfterBootstrap(userService),
   userController.createUserByAdmin,
+);
+
+/**
+ * @openapi
+ * /api/v1/admin/users/{userId}:
+ *   get:
+ *     summary: Get user details
+ *     tags:
+ *       - Admin Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *     responses:
+ *       200:
+ *         description: User details
+ *       400:
+ *         description: Invalid user id
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin role is required
+ *       404:
+ *         description: User not found
+ */
+router.get(
+  "/:userId",
+  requireAdminAuth(userService),
+  userController.getUserByAdmin,
 );
 
 /**
