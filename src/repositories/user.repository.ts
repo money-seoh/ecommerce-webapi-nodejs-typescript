@@ -18,6 +18,19 @@ export interface UpdateUserRecord {
   passwordHash?: string;
 }
 
+export interface ListUsersCriteria {
+  page: number;
+  limit: number;
+  search?: string;
+  role?: string;
+  isActive?: boolean;
+}
+
+export interface UserListResult {
+  users: UserWithRole[];
+  totalItems: number;
+}
+
 export interface UserWithRole extends User {
   userRoles: {
     role: {
@@ -92,6 +105,53 @@ export class UserRepository {
       }
       if (error instanceof Prisma.PrismaClientValidationError) {
         throw new InternalError("Invalid query for findById");
+      }
+      throw error;
+    }
+  }
+
+  async findMany(criteria: ListUsersCriteria): Promise<UserListResult> {
+    const where: Prisma.UserWhereInput = {
+      ...(criteria.search === undefined
+        ? {}
+        : {
+            OR: [
+              { firstName: { contains: criteria.search } },
+              { lastName: { contains: criteria.search } },
+              { email: { contains: criteria.search } },
+            ],
+          }),
+      ...(criteria.role === undefined
+        ? {}
+        : {
+            userRoles: {
+              some: {
+                role: { name: criteria.role },
+              },
+            },
+          }),
+      ...(criteria.isActive === undefined ? {} : { isActive: criteria.isActive }),
+    };
+
+    try {
+      const [users, totalItems] = await this.prisma.$transaction([
+        this.prisma.user.findMany({
+          where,
+          include: userWithRoleInclude,
+          orderBy: { id: "asc" },
+          skip: (criteria.page - 1) * criteria.limit,
+          take: criteria.limit,
+        }),
+        this.prisma.user.count({ where }),
+      ]);
+
+      return { users, totalItems };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new InternalError("Database error in findMany");
+      }
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new InternalError("Invalid query for findMany");
       }
       throw error;
     }
@@ -182,6 +242,26 @@ export class UserRepository {
       }
       if (error instanceof Prisma.PrismaClientValidationError) {
         throw new InternalError("Invalid user update request");
+      }
+      throw error;
+    }
+  }
+
+  async updatePasswordHash(id: number, passwordHash: string): Promise<void> {
+    try {
+      await this.prisma.user.update({
+        where: { id },
+        data: { passwordHash },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2025") {
+          throw new NotFoundError("User not found");
+        }
+        throw new InternalError("Database error in updatePasswordHash");
+      }
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new InternalError("Invalid password update request");
       }
       throw error;
     }

@@ -8,7 +8,7 @@ export const ROLE_NAMES = {
 export type RoleName = (typeof ROLE_NAMES)[keyof typeof ROLE_NAMES];
 
 // Password policy: minimum 8 characters, at least one letter and one number.
-const passwordSchema = z
+export const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters long")
   .max(24, "Password must be at most 24 characters long")
@@ -75,6 +75,15 @@ export const customerLoginSchema = z
 
 export type CustomerLoginDto = z.infer<typeof customerLoginSchema>;
 
+export const changeCustomerPasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: passwordSchema,
+  })
+  .strict();
+
+export type ChangeCustomerPasswordDto = z.infer<typeof changeCustomerPasswordSchema>;
+
 export const userIdParamSchema = z
   .object({
     userId: z.coerce.number().int().positive("User id must be a positive integer"),
@@ -82,6 +91,24 @@ export const userIdParamSchema = z
   .strict();
 
 export type UserIdParamDto = z.infer<typeof userIdParamSchema>;
+
+const queryBooleanSchema = z.preprocess((value) => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return value;
+}, z.boolean());
+
+export const listUsersQuerySchema = z
+  .object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+    search: z.string().trim().min(1).max(1000).optional(),
+    role: z.enum([ROLE_NAMES.ADMIN, ROLE_NAMES.CUSTOMER]).optional(),
+    isActive: queryBooleanSchema.optional(),
+  })
+  .strict();
+
+export type ListUsersQueryDto = z.infer<typeof listUsersQuerySchema>;
 
 export interface UserResponseDto {
   id: number;
@@ -100,4 +127,14 @@ export interface AuthTokenResponseDto {
   accessToken: string;
   tokenType: "Bearer";
   expiresIn: string;
+}
+
+export interface PaginatedUsersResponseDto {
+  data: UserResponseDto[];
+  meta: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
 }

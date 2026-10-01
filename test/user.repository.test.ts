@@ -7,6 +7,7 @@ interface MockPrismaClient {
   $transaction: jest.Mock;
   user: {
     findUnique: jest.Mock;
+    findMany: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
     count: jest.Mock;
@@ -22,6 +23,7 @@ function makePrismaClient(): MockPrismaClient {
     $transaction: jest.fn(),
     user: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
@@ -96,6 +98,47 @@ describe("UserRepository", () => {
       const repo = new UserRepository(prisma as never);
       const result = await repo.findById(5);
       expect(result).toEqual(user);
+    });
+
+    describe("findMany", () => {
+      it("should apply search, role, status, and pagination criteria", async () => {
+        const users = [buildUserWithRole({ id: 21, isActive: true })];
+        const prisma = makePrismaClient();
+        prisma.user.findMany.mockReturnValue("users-query");
+        prisma.user.count.mockReturnValue("count-query");
+        prisma.$transaction.mockResolvedValue([users, 11]);
+        const repo = new UserRepository(prisma as never);
+
+        await expect(
+          repo.findMany({
+            page: 2,
+            limit: 10,
+            search: "jane",
+            role: "Customer",
+            isActive: true,
+          }),
+        ).resolves.toEqual({ users, totalItems: 11 });
+
+        expect(prisma.user.findMany).toHaveBeenCalledWith({
+          where: {
+            OR: [
+              { firstName: { contains: "jane" } },
+              { lastName: { contains: "jane" } },
+              { email: { contains: "jane" } },
+            ],
+            userRoles: { some: { role: { name: "Customer" } } },
+            isActive: true,
+          },
+          include: expect.any(Object),
+          orderBy: { id: "asc" },
+          skip: 10,
+          take: 10,
+        });
+        expect(prisma.user.count).toHaveBeenCalledWith({
+          where: expect.objectContaining({ isActive: true }),
+        });
+        expect(prisma.$transaction).toHaveBeenCalledWith(["users-query", "count-query"]);
+      });
     });
 
     it("should return null when user is not found", async () => {
@@ -237,6 +280,20 @@ describe("UserRepository", () => {
           lastName: "Doe",
           mobileNumber: "+15551234567",
         },
+      });
+    });
+
+    describe("updatePasswordHash", () => {
+      it("should update only the password hash", async () => {
+        const prisma = makePrismaClient();
+        prisma.user.update.mockResolvedValue(buildUserWithRole());
+        const repo = new UserRepository(prisma as never);
+
+        await expect(repo.updatePasswordHash(7, "new-hash")).resolves.toBeUndefined();
+        expect(prisma.user.update).toHaveBeenCalledWith({
+          where: { id: 7 },
+          data: { passwordHash: "new-hash" },
+        });
       });
     });
 
