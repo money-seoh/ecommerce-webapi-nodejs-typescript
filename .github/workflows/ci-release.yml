@@ -47,12 +47,14 @@ jobs:
         run: npm install --package-lock-only --package-lock=true --ignore-scripts --no-audit --no-fund
 
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=low
 
       - name: Scan commits for secrets
         uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
 
   quality:
     name: Lint and build
@@ -131,16 +133,23 @@ jobs:
       - name: Create package
         env:
           RELEASE_VERSION: ${{ inputs.release_version }}
+          DATABASE_URL: sqlserver://localhost:1433;database=ci;trustServerCertificate=true
         run: |
-          mkdir -p artifacts
-          npm pack --pack-destination artifacts
-          mv artifacts/*.tgz "artifacts/ecommerce-webapi-${RELEASE_VERSION}.tgz"
+          npm version "${RELEASE_VERSION#v}" --no-git-tag-version --allow-same-version
+          npm install --ignore-scripts --no-audit --no-fund
+          npm run prisma:generate
+          npm run build
+          mkdir -p artifacts/package/prisma
+          cp -R dist artifacts/package/
+          cp prisma/schema.prisma artifacts/package/prisma/schema.prisma
+          cp package.json artifacts/package/
+          tar -czf "artifacts/ecommerce-webapi-${RELEASE_VERSION}.tar.gz" -C artifacts/package .
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4.6.2
         with:
           name: release-package
-          path: artifacts/*.tgz
+          path: artifacts/*.tar.gz
           if-no-files-found: error
           retention-days: 7
 
@@ -172,6 +181,6 @@ jobs:
           path: artifacts
 
       - name: Create GitHub release
-        run: gh release create "$RELEASE_VERSION" artifacts/*.tgz --title "$RELEASE_VERSION" --generate-notes
+        run: gh release create "$RELEASE_VERSION" artifacts/*.tar.gz --title "$RELEASE_VERSION" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
