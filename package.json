@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/src/server.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc --strict -p tsconfig.json",
     "start": "node dist/src/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
