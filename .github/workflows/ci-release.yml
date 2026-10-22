@@ -49,6 +49,9 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=low
 
+      - name: Audit all dependencies, including development dependencies
+        run: npm audit --audit-level=high
+
       # TODO: Gitleaks steps are disabled; re-enable and address in future.
       # - name: Scan commits for secrets
       #   uses: gitleaks/gitleaks-action@v2.3.9
