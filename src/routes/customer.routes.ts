@@ -35,6 +35,15 @@ const customerChangePasswordRateLimit = rateLimit({
     next(new TooManyRequestsError("Too many password change attempts"));
   },
 });
+const customerRegistrationRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many customer registration attempts"));
+  },
+});
 
 /**
  * @openapi
@@ -146,6 +155,25 @@ router.post(
   userController.changeCustomerPassword,
 );
 
-router.post("/register", userController.registerCustomer);
+/**
+ * @openapi
+ * /api/v1/customers/register:
+ *   post:
+ *     summary: Register a customer account
+ *     tags:
+ *       - Customers
+ *     requestBody:
+ *       required: true
+ *     responses:
+ *       201:
+ *         description: Customer registered successfully
+ *       400:
+ *         description: Invalid registration payload
+ *       409:
+ *         description: Email already exists
+ *       429:
+ *         description: Too many registration attempts
+ */
+router.post("/register", customerRegistrationRateLimit, userController.registerCustomer);
 
 export default router;
