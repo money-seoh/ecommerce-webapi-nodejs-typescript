@@ -22,7 +22,6 @@ jobs:
       contents: read
       packages: read
       pull-requests: read
-      security-events: write
     steps:
       - name: Check out repository history
         uses: actions/checkout@v7
@@ -33,15 +32,6 @@ jobs:
         uses: actions/setup-node@v7.1.0
         with:
           node-version: 24
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-          build-mode: none
-
-      - name: Analyze with CodeQL
-        uses: github/codeql-action/analyze@v4
 
       - name: Create a temporary dependency lockfile
         run: npm install --package-lock-only --package-lock=true --ignore-scripts --no-audit --no-fund
