@@ -1,6 +1,8 @@
 name: CI and Release
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -53,10 +55,18 @@ jobs:
       # - name: Scan full history for secrets
       #   run: gitleaks git --no-banner --redact --verbose .
 
+  codeql:
+    name: CodeQL analysis
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
   quality:
     name: Lint and build
     runs-on: ubuntu-latest
-    needs: security
+    needs: [security, codeql]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
