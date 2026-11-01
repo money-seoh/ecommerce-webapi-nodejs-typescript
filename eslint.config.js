@@ -26,8 +26,8 @@ module.exports = [
     rules: {
       ...js.configs.recommended.rules,
       "no-undef": "off",
-      "no-unused-vars": "off",
-      "no-console": "off",
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-console": "warn",
     },
   },
 ];
