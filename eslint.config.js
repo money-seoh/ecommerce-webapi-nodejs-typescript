@@ -1,5 +1,6 @@
-const tsParser = require("@typescript-eslint/parser");
-const tsPlugin = require("@typescript-eslint/eslint-plugin");
+const babelParser = require("@babel/eslint-parser");
+const js = require("@eslint/js");
+const globals = require("globals");
 
 module.exports = [
   {
@@ -8,20 +9,25 @@ module.exports = [
   {
     files: ["src/**/*.ts", "test/**/*.ts"],
     languageOptions: {
-      parser: tsParser,
+      parser: babelParser,
       parserOptions: {
         ecmaVersion: 2021,
         sourceType: "module",
+        requireConfigFile: false,
+        babelOptions: {
+          presets: ["@babel/preset-typescript"],
+        },
+      },
+      globals: {
+        ...globals.node,
+        ...globals.jest,
       },
     },
-    plugins: {
-      "@typescript-eslint": tsPlugin,
-    },
     rules: {
-      ...tsPlugin.configs.recommended.rules,
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-      "@typescript-eslint/explicit-function-return-type": "off",
-      "no-console": "off",
+      ...js.configs.recommended.rules,
+      "no-undef": "off",
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-console": "warn",
     },
   },
 ];
